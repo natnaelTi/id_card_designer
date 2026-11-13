@@ -1,0 +1,175 @@
+{
+  "doctype": "DocType",
+  "name": "ID Card Template",
+  "module": "ID Card Designer",
+  "custom": 0,
+  "issingle": 0,
+  "track_changes": 1,
+  "autoname": "hash",
+  "fields": [
+    {
+      "fieldname": "title",
+      "label": "Title",
+      "fieldtype": "Data",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "description",
+      "label": "Description",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "enabled",
+      "label": "Enabled",
+      "fieldtype": "Check",
+      "default": 1
+    },
+    {
+      "fieldname": "builtin",
+      "label": "Builtin",
+      "fieldtype": "Check",
+      "read_only": 1
+    },
+    {
+      "fieldname": "is_default",
+      "label": "Is Default",
+      "fieldtype": "Check",
+      "read_only": 1
+    },
+    {
+      "fieldname": "status",
+      "label": "Status",
+      "fieldtype": "Select",
+      "options": "Draft\nPublished",
+      "default": "Draft",
+      "read_only": 1
+    },
+    {
+      "fieldname": "editor_mode",
+      "label": "Editor Mode",
+      "fieldtype": "Select",
+      "options": "Visual\nCode",
+      "default": "Visual"
+    },
+    {
+      "fieldname": "source_doctype",
+      "label": "Source Doctype",
+      "fieldtype": "Data",
+      "default": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "width_mm",
+      "label": "Width Mm",
+      "fieldtype": "Float",
+      "default": 85.6
+    },
+    {
+      "fieldname": "height_mm",
+      "label": "Height Mm",
+      "fieldtype": "Float",
+      "default": 53.98
+    },
+    {
+      "fieldname": "bleed_mm",
+      "label": "Bleed Mm",
+      "fieldtype": "Float",
+      "default": 0
+    },
+    {
+      "fieldname": "allowed_roles",
+      "label": "Allowed Roles",
+      "fieldtype": "Small Text"
+    },
+    {
+      "fieldname": "front_layout",
+      "label": "Front Layout",
+      "fieldtype": "Code",
+      "options": "JSON"
+    },
+    {
+      "fieldname": "back_layout",
+      "label": "Back Layout",
+      "fieldtype": "Code",
+      "options": "JSON"
+    },
+    {
+      "fieldname": "front_html",
+      "label": "Front Html",
+      "fieldtype": "Code",
+      "options": "HTML"
+    },
+    {
+      "fieldname": "back_html",
+      "label": "Back Html",
+      "fieldtype": "Code",
+      "options": "HTML"
+    },
+    {
+      "fieldname": "shared_css",
+      "label": "Shared Css",
+      "fieldtype": "Code",
+      "options": "CSS"
+    },
+    {
+      "fieldname": "published_snapshot",
+      "label": "Published Snapshot",
+      "fieldtype": "Long Text",
+      "read_only": 1,
+      "permlevel": 1
+    },
+    {
+      "fieldname": "revision",
+      "label": "Revision",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "revisions",
+      "label": "Revisions",
+      "fieldtype": "Long Text",
+      "read_only": 1,
+      "permlevel": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "ID Card Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "ID Card Designer",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "ID Card Printer",
+      "read": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "System Manager",
+      "permlevel": 1,
+      "read": 1,
+      "write": 1
+    },
+    {
+      "role": "ID Card Manager",
+      "permlevel": 1,
+      "read": 1,
+      "write": 1
+    }
+  ]
+}

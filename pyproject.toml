@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "id_card_designer"
+version = "0.1.0"
+description = "Institutional two-sided ID cards for Frappe"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["weasyprint>=62,<70", "pypdf>=4", "Pillow>=10", "beautifulsoup4", "tinycss2"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["id_card_designer*"]
+[tool.setuptools.package-data]
+id_card_designer = ["**/*.json", "**/*.js", "**/*.css", "**/*.ttf", "**/*.txt", "**/*.svg", "*.txt"]
+
+[tool.ruff]
+line-length = 100
+exclude = ["build", "dist"]
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

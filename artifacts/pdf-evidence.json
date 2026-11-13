@@ -1,0 +1,14 @@
+{
+  "file": "/home/frappe/frappe/frappe-bench/apps/id_card_designer/artifacts/demo.pdf",
+  "pages": 2,
+  "dimensions_mm": [
+    {
+      "width": 85.6,
+      "height": 53.98
+    },
+    {
+      "width": 85.6,
+      "height": 53.98
+    }
+  ]
+}

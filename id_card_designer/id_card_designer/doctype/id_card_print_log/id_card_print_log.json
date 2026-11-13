@@ -1,0 +1,54 @@
+{
+  "doctype": "DocType",
+  "name": "ID Card Print Log",
+  "module": "ID Card Designer",
+  "custom": 0,
+  "issingle": 0,
+  "track_changes": 1,
+  "autoname": "hash",
+  "fields": [
+    {
+      "fieldname": "printed_by",
+      "label": "Printed By",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "source_user",
+      "label": "Source User",
+      "fieldtype": "Link",
+      "options": "User",
+      "read_only": 1
+    },
+    {
+      "fieldname": "template",
+      "label": "Template",
+      "fieldtype": "Link",
+      "options": "ID Card Template",
+      "read_only": 1
+    },
+    {
+      "fieldname": "revision",
+      "label": "Revision",
+      "fieldtype": "Int",
+      "read_only": 1
+    },
+    {
+      "fieldname": "result",
+      "label": "Result",
+      "fieldtype": "Data",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "ID Card Manager",
+      "read": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "doctype": "DocType",
+  "name": "ID Card Settings",
+  "module": "ID Card Designer",
+  "custom": 0,
+  "issingle": 1,
+  "track_changes": 1,
+  "autoname": null,
+  "fields": [
+    {
+      "fieldname": "default_template",
+      "label": "Default Template",
+      "fieldtype": "Link",
+      "options": "ID Card Template",
+      "read_only": 1
+    },
+    {
+      "fieldname": "printing_roles",
+      "label": "Printing Roles",
+      "fieldtype": "Small Text",
+      "description": "One role per line; empty uses ID Card Printer and ID Card Manager."
+    },
+    {
+      "fieldname": "default_width_mm",
+      "label": "Default Width Mm",
+      "fieldtype": "Float",
+      "default": 85.6
+    },
+    {
+      "fieldname": "default_height_mm",
+      "label": "Default Height Mm",
+      "fieldtype": "Float",
+      "default": 53.98
+    },
+    {
+      "fieldname": "default_bleed_mm",
+      "label": "Default Bleed mm",
+      "fieldtype": "Float",
+      "default": 0
+    }
+  ],
+  "permissions": [
+    {
+      "role": "ID Card Manager",
+      "read": 1,
+      "write": 1
+    },
+    {
+      "role": "ID Card Designer",
+      "read": 1
+    },
+    {
+      "role": "ID Card Printer",
+      "read": 1
+    },
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1
+    }
+  ]
+}
