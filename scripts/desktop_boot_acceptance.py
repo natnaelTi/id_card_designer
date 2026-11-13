@@ -31,6 +31,24 @@ if not supports_desktop_icons():
                 icon="printer",
             )
         ).insert()
+    # Legacy loader keys standard metadata by a missing module_name field.
+    # A standard icon then overwrites the custom icon's label ("Build" in
+    # the reported traceback), making its whole-row lookup fail. Fresh sites
+    # may not have a standard icon yet, so reproduce that actual condition.
+    fixture = "ID Card Boot Regression Standard Fixture"
+    assert not frappe.db.exists("Desktop Icon", fixture)
+    frappe.get_doc(
+        dict(
+            doctype="Desktop Icon",
+            label=fixture,
+            standard=1,
+            icon_type="Link",
+            link_type="Workspace Sidebar",
+            link_to="ID Card Designer",
+            sidebar="ID Card Designer",
+            icon="printer",
+        )
+    ).insert()
     frappe.cache().delete_key("desktop_icons")
     try:
         get_bootinfo()
@@ -39,6 +57,8 @@ if not supports_desktop_icons():
         print("REPRODUCED: early-v16 Desktop Icon row interpreted as a document name")
     else:
         raise AssertionError("Expected the unmodified old framework to reproduce the boot failure")
+    finally:
+        frappe.delete_doc("Desktop Icon", fixture)
 seed_navigation()
 seed_navigation()
 frappe.cache().delete_key("desktop_icons")
