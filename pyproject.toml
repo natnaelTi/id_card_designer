@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "id_card_designer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Institutional two-sided ID cards for Frappe"
 readme = "README.md"
 requires-python = ">=3.10"
