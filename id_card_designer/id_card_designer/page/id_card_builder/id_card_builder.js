@@ -55,7 +55,7 @@ class IDCardBuilder {
     });
   }
   async call(method, args = {}) {
-    return (await frappe.call("id_card_designer.api." + method, args)).message;
+    return (await frappe.call({method:"id_card_designer.api." + method,args,silent:method==='save_draft'})).message;
   }
   async load() {
     const name = frappe.get_route()[1];

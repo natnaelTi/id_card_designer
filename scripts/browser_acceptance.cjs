@@ -1,6 +1,9 @@
 const { chromium } = require("playwright");
 const fs = require("fs");
 const assert = require("node:assert/strict");
+const path=require("node:path");
+const artifacts=process.env.ID_CARD_ARTIFACT_DIR||path.join(__dirname,"../artifacts");fs.mkdirSync(artifacts,{recursive:true});
+const loginFile=process.env.ID_CARD_LOGIN_FILE||"/tmp/id-card-runtime/browser-login.json";
 (async () => {
   const base =
     process.env.ID_CARD_TEST_URL ||
@@ -30,8 +33,7 @@ const assert = require("node:assert/strict");
       const bytes = await response.body();
       assert.equal(bytes.subarray(0, 5).toString(), "%PDF-");
       fs.writeFileSync(
-        __dirname +
-          "/../artifacts/" +
+        artifacts + "/" +
           (pdfIndex++ === 0 ? "code-preview.pdf" : "browser-print.pdf"),
         bytes
       );
@@ -42,7 +44,7 @@ const assert = require("node:assert/strict");
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(base + "/login");
   const login = JSON.parse(
-    fs.readFileSync("/tmp/id-card-runtime/browser-login.json")
+    fs.readFileSync(loginFile)
   );
   await page.evaluate(async (login) => {
     const response = await fetch("/api/method/login", {
@@ -57,7 +59,7 @@ const assert = require("node:assert/strict");
     .getByText("Protected sample — duplicate to edit", { exact: false })
     .waitFor({ timeout: 60000 });
   await page.screenshot({
-    path: __dirname + "/../artifacts/builder-demo.png",
+    path: artifacts + "/builder-demo.png",
     fullPage: true,
   });
   await page.getByRole("button", { name: "Duplicate", exact: true }).click();
@@ -111,7 +113,7 @@ const assert = require("node:assert/strict");
   await page.getByRole("button", { name: "Upload image", exact: true }).click();
   await page
     .locator('.modal:visible input[type="file"]')
-    .setInputFiles("/tmp/id-card-runtime/test-logo.png");
+    .setInputFiles(path.join(path.dirname(loginFile),"test-logo.png"));
   await page.locator(".modal:visible .btn-primary").click();
   await page
     .locator('.ic-element img[src*="test-logo"]')
@@ -125,7 +127,7 @@ const assert = require("node:assert/strict");
     document.querySelector(".ic-status")?.textContent.startsWith("Published")
   );
   await page.screenshot({
-    path: __dirname + "/../artifacts/builder-edited.png",
+    path: artifacts + "/builder-edited.png",
     fullPage: true,
   });
   // Conversion creates a separate draft; Ace changes are validated through a real PDF.
@@ -148,7 +150,7 @@ const assert = require("node:assert/strict");
     document.querySelector(".ic-status")?.textContent.includes("Saved")
   );
   await page.screenshot({
-    path: __dirname + "/../artifacts/code-editor.png",
+    path: artifacts + "/code-editor.png",
     fullPage: true,
   });
   const preview = context.waitForEvent("response", (r) =>
@@ -171,7 +173,7 @@ const assert = require("node:assert/strict");
   );
   assert.equal(await select.inputValue(), "national-id-inspired-demo");
   await page.screenshot({
-    path: __dirname + "/../artifacts/print-dialog.png",
+    path: artifacts + "/print-dialog.png",
     fullPage: true,
   });
   const response = context.waitForEvent("response", (r) =>

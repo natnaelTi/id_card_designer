@@ -447,12 +447,12 @@ def draft_key():
     import hashlib
 
     scope = hashlib.sha256((frappe.session.user + str(frappe.session.sid)).encode()).hexdigest()
-    key = "id-card-draft-key:" + scope
-    value = frappe.cache().get_value(key)
-    if not value:
-        value = base64.b64encode(secrets.token_bytes(32)).decode()
-        frappe.cache().set_value(key, value, expires_in_sec=86400)
-    return value
+    cache = frappe.cache()
+    key = cache.make_key("id-card-draft-key:" + scope)
+    # Atomic initialization across parallel tabs; bypass request-local cached misses.
+    cache.set(key, base64.b64encode(secrets.token_bytes(32)), ex=86400, nx=True)
+    value = cache.get(key)
+    return value.decode() if isinstance(value, bytes) else value
 
 
 @frappe.whitelist()

@@ -300,7 +300,7 @@ class WorkflowTests(IntegrationTestCase):
             api.publish_template(current["name"], stale["modified"])
         current["block_severe"] = 1
         current["front_layout"] = json.dumps(
-            [dict(type="text", x=84, y=5, width=10, height=5, text="Outside")]
+            [dict(type="text", x=75, y=0, width=10, height=5, rotation=45, text="Outside")]
         )
         current = api.save_draft(current)
         with self.assertRaises(frappe.ValidationError):
