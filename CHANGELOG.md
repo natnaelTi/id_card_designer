@@ -5,6 +5,7 @@
 - Fix Desk boot on early Frappe v16 by detecting the unsafe Desktop Icon loader, retaining workspace/sidebar navigation, and removing only this app's incompatible icon during migration. No framework monkeypatch or core edits.
 - Add a real boot regression that reproduces the original failure before repairing it, plus Frappe 16.2.1 in CI alongside v15 and current v16.
 - Support actual missing-glyph reporting on WeasyPrint 66 used by early v16.
+- Explicitly set inline Content-Disposition on app PDF responses; early v16 drops the requested disposition. Other responses are untouched.
 
 ## 0.2.0
 

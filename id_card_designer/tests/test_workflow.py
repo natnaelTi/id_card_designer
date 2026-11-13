@@ -337,3 +337,22 @@ class WorkflowTests(IntegrationTestCase):
         frappe.local.uploaded_filename = "unsafe.svg"
         with self.assertRaises(frappe.ValidationError):
             api.upload_asset()
+
+    def test_inline_pdf_header_is_app_scoped(self):
+        from werkzeug.wrappers import Response
+
+        previous = getattr(frappe.local, "id_card_pdf", False)
+        try:
+            frappe.local.id_card_pdf = True
+            response = Response()
+            api.secure_pdf_headers(response)
+            self.assertEqual(
+                response.headers["Content-Disposition"], 'inline; filename="institutional-id.pdf"'
+            )
+            self.assertIn("no-store", response.headers["Cache-Control"])
+            frappe.local.id_card_pdf = False
+            other = Response()
+            api.secure_pdf_headers(other)
+            self.assertNotIn("Content-Disposition", other.headers)
+        finally:
+            frappe.local.id_card_pdf = previous
