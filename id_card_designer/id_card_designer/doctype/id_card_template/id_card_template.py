@@ -35,6 +35,9 @@ class IDCardTemplate(Document):
             frappe.throw("Choose another default before disabling this template.")
         if self.source_doctype != "User":
             frappe.throw("Only User source records are supported.")
+        for role in (self.allowed_roles or "").splitlines():
+            if not frappe.db.exists("Role", role):
+                frappe.throw("Unknown template audience role: " + role)
         snapshot(self)
 
     def on_trash(self):
@@ -46,4 +49,4 @@ class IDCardTemplate(Document):
 def has_permission(doc, ptype=None, user=None, **kwargs):
     from id_card_designer.security import audience_allowed
 
-    return None if audience_allowed(doc, user=user) else False
+    return bool(audience_allowed(doc, user=user))

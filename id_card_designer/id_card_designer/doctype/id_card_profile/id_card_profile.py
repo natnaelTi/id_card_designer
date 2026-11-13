@@ -16,7 +16,7 @@ class IDCardProfile(Document):
 
 
 def has_permission(doc, ptype=None, user=None, **kwargs):
-    return None if frappe.has_permission("User", "read", doc=doc.user, user=user) else False
+    return bool(frappe.has_permission("User", "read", doc=doc.user, user=user))
 
 
 def get_permission_query_conditions(user=None):

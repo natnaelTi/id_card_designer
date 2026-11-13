@@ -37,6 +37,17 @@
       "label": "Default Bleed mm",
       "fieldtype": "Float",
       "default": 0
+    },
+    {
+      "fieldname": "qr_application_origin",
+      "label": "Approved QR application origin (HTTPS)",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "audit_retention_days",
+      "label": "Audit retention days",
+      "fieldtype": "Int",
+      "default": 90
     }
   ],
   "permissions": [

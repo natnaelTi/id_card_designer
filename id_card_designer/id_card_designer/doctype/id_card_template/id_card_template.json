@@ -131,6 +131,24 @@
       "fieldtype": "Long Text",
       "read_only": 1,
       "permlevel": 1
+    },
+    {
+      "fieldname": "safe_margin_mm",
+      "label": "Safe margin mm",
+      "fieldtype": "Float",
+      "default": 3
+    },
+    {
+      "fieldname": "block_severe",
+      "label": "Block severe preflight errors",
+      "fieldtype": "Check",
+      "default": 0
+    },
+    {
+      "fieldname": "crop_marks",
+      "label": "Crop marks (requires 3 mm bleed)",
+      "fieldtype": "Check",
+      "default": 0
     }
   ],
   "permissions": [
