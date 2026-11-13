@@ -19,18 +19,26 @@ from frappe.boot import get_bootinfo  # noqa: E402
 
 if not supports_desktop_icons():
     # Reproduce a previously installed app icon, then exercise its real boot failure.
-    if not frappe.db.exists("Desktop Icon", "ID Card Designer"):
-        frappe.get_doc(
-            dict(
-                doctype="Desktop Icon",
-                label="ID Card Designer",
-                icon_type="Link",
-                link_type="Workspace Sidebar",
-                link_to="ID Card Designer",
-                sidebar="ID Card Designer",
-                icon="printer",
-            )
-        ).insert()
+    # A clean framework may have auto-generated a *standard* icon for our
+    # workspace. Recreate the app's 0.2.0 custom icon state explicitly so this
+    # tests the reported upgrade failure instead of an unrelated clean state.
+    icon = (
+        frappe.get_doc("Desktop Icon", "ID Card Designer")
+        if frappe.db.exists("Desktop Icon", "ID Card Designer")
+        else frappe.new_doc("Desktop Icon")
+    )
+    icon.update(
+        dict(
+            label="ID Card Designer",
+            standard=0,
+            icon_type="Link",
+            link_type="Workspace Sidebar",
+            link_to="ID Card Designer",
+            sidebar="ID Card Designer",
+            icon="printer",
+        )
+    )
+    icon.save()
     # Legacy loader keys standard metadata by a missing module_name field.
     # A standard icon then overwrites the custom icon's label ("Build" in
     # the reported traceback), making its whole-row lookup fail. Fresh sites
