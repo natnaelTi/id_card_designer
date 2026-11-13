@@ -115,6 +115,23 @@ def inspect(s, data, documents=None):
         # where a rendered ligature replaces its individual Unicode characters.
         missing_glyphs = set().union(*(set(getattr(font, "missing", {})) for font in fonts))
         boxes = list(descendants(document.pages[0]._page_box))
+        if fonts and not all(hasattr(font, "missing") for font in fonts):
+            # WeasyPrint 66 skips unknown Pango glyphs rather than recording them.
+            # Its rendered Unicode maps include expanded ligature strings.
+            rendered = {
+                ord(c)
+                for font in fonts
+                for text in getattr(font, "cmap", {}).values()
+                for c in text
+            }
+            missing_glyphs = {
+                ord(c)
+                for box in boxes
+                if isinstance(box, TextBox)
+                for c in box.text
+                if not c.isspace() and ord(c) not in rendered
+            }
+
         owners = {}
         for box in boxes:
             element = getattr(box, "element", None)

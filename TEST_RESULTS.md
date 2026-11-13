@@ -93,3 +93,8 @@ Browser fixture credentials remain in a private runtime file outside the repo an
 ## Remaining deployment checks
 
 No production rollout, physical printer/duplex test, Firefox/Safari run or certified PDF/X/CMYK/ICC conversion is claimed. Gallery thumbnails remain schematic. Arbitrary HTML cannot round-trip into visual layers, and no government verifier is implemented. See ADMIN_GUIDE for all bounded-format/resource constraints and access/retention behavior.
+
+
+## 0.2.1 early-v16 Desk boot regression
+
+The reported Selfmade traceback was reproduced on unmodified Frappe **16.2.1**, Python **3.14.2**, WeasyPrint **66.0** with the previously installed app icon. `scripts/desktop_boot_acceptance.py` first asserts the real `get_bootinfo()` failure, then runs the idempotent navigation repair twice and asserts real Desk boot succeeds with the workspace/sidebar retained. The same script passes on Frappe **16.56.0**, retaining its supported desktop icon. Cleanup is restricted to the exact app-owned icon/sidebar pair, with a unit test proving unrelated icons are untouched. CI now includes both early/current v16 and v15; early/current v16 run this real boot recovery gate in addition to the full backend/browser/lifecycle suite. Earlier counts in this document describe 0.2.0; 0.2.1 adds two navigation unit tests.
