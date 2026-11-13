@@ -32,6 +32,12 @@ const artifacts=process.env.ID_CARD_ARTIFACT_DIR||path.join(__dirname,'../artifa
  await page.route('**/api/method/id_card_designer.api.save_draft',route=>route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({exc_type:'ValidationError',_server_messages:'[]'})}));
  await page.locator('.ic-properties textarea').fill('Retained after server error');await page.waitForFunction(()=>document.querySelector('.ic-status')?.textContent.includes('Error'));
  await page.unroute('**/api/method/id_card_designer.api.save_draft');await page.keyboard.press('Escape');await button(page,'Retry save').click();await saved(page);
+ // Refresh after a failed write must recover encrypted local source for this login.
+ await page.route('**/api/method/id_card_designer.api.save_draft',route=>route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({exc_type:'ValidationError',_server_messages:'[]'})}));
+ await page.locator('.ic-properties textarea').fill('Unsaved refresh recovery marker');await page.waitForFunction(()=>document.querySelector('.ic-status')?.textContent.includes('Error'));
+ await page.unroute('**/api/method/id_card_designer.api.save_draft');await page.reload();
+ await page.getByRole('dialog').waitFor({timeout:30000});assert.match(await page.getByLabel('Encrypted/local unsaved draft',{exact:true}).inputValue(),/Unsaved refresh recovery marker/);
+ await button(page,'Reload saved draft').click();await saved(page);doc=await api(page,'get_template_for_builder',{name:draft});assert.doesNotMatch(doc.front_layout+doc.back_layout,/Unsaved refresh recovery marker/);await button(page,'back').click();
  // Two loaded editors: first write wins; second reports conflict instead of overwriting.
  const other=await context.newPage();await other.goto(url);await saved(other);
  await button(page,'Add text').click();await page.locator('.ic-properties textarea').fill('First editor committed');await saved(page);
@@ -44,8 +50,9 @@ const artifacts=process.env.ID_CARD_ARTIFACT_DIR||path.join(__dirname,'../artifa
  await page.screenshot({path:path.join(artifacts,'group-editor.png'),fullPage:true});await button(page,'Ungroup').click();await saved(page);
  await button(page,'Add qr').click();await page.locator('.ic-properties textarea').fill('ORG-DEMO-PHASE2');await saved(page);await page.locator('.ic-element img').last().waitFor();
  await page.screenshot({path:path.join(artifacts,'qr-editor.png'),fullPage:true});
+ await page.locator('.ic-canvas').focus();await page.keyboard.press('Tab');assert.equal(await page.locator('.ic-canvas').evaluate(n=>document.activeElement===n),false,'Canvas must not trap Tab focus');
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(artifacts,'builder-narrow.png'),fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+2),true,'Page must fit narrow viewport');
- assert.deepEqual(errors,[]);console.log('PASS phase2: rapid both-face autosave, reload, offline/retry, HTTP error/retry, two-editor conflict/copy, group/rotation/ungroup, QR preview, narrow viewport.');
+ assert.deepEqual(errors,[]);console.log('PASS phase2: rapid both-face autosave, reload, offline/retry, HTTP error/retry, encrypted refresh recovery, two-editor conflict/copy, group/rotation/ungroup, QR preview, narrow viewport.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

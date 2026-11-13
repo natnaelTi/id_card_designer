@@ -183,3 +183,36 @@ class Phase2RenderingTests(UnitTestCase):
         for css in [".x{font-size:1e100px}", ".x{width:calc(999999mm)}"]:
             with self.assertRaises(ValueError):
                 r.validate_css(css)
+
+    def test_preflight_actual_fonts_and_missing_glyphs(self):
+        self.s["front_layout"] = json.dumps(
+            [
+                dict(
+                    type="text",
+                    x=5,
+                    y=5,
+                    width=70,
+                    height=10,
+                    text="office affiliation ሰላም",
+                    style={"font-size": "10pt"},
+                )
+            ]
+        )
+        report = r.preflight(self.s, DEMO)
+        self.assertTrue(report["fonts_used"])
+        self.assertFalse([e for e in report["errors"] if e["code"] == "missing_glyph"])
+        self.s["front_layout"] = json.dumps(
+            [
+                dict(
+                    type="text",
+                    x=5,
+                    y=5,
+                    width=70,
+                    height=10,
+                    text="Missing: \U0010ffff",
+                    style={"font-size": "10pt"},
+                )
+            ]
+        )
+        report = r.preflight(self.s, DEMO)
+        self.assertTrue([e for e in report["errors"] if e["code"] == "missing_glyph"])

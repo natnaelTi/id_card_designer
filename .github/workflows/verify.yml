@@ -1,7 +1,7 @@
 name: Verify
 on:
   push:
-    branches: [main, feature/finish-id-card-designer]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:

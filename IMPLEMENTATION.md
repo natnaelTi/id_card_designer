@@ -30,3 +30,17 @@ The app is registered in this Bench's `sites/apps.txt` and installed in its Pyth
 ## Scope and limitations
 
 The working end-to-end features above are implemented. Optional/editor enhancements are explicitly unfinished: autosave, grouping, dynamic object alignment guides, a visual rich-text toolbar, global asset-library management, QR/barcode generation, crop marks, PDF/X/CMYK support and exact text-overflow measurement. Code mode is intentionally a safe subset and has no HTML-to-visual round trip. See README for details and TEST_RESULTS for remaining manual/browser/physical-printer and Frappe-v16 checks.
+
+## Phase-two continuation (2026-11-13)
+
+The phase-one sections above are a historical milestone record, not the release verification matrix. See TEST_RESULTS.md for current results.
+
+1. Reverified baseline cb66a7d on the existing v15 framework (27 tests), confirmed app-only history/empty remote, bootstrapped main, and developed on feature/finish-id-card-designer. Existing uncommitted Tele Tena work was preserved.
+2. Added canonical affine geometry, nested groups and lossless flattening; serialized optimistic autosave with encrypted recovery; explicit code scene/QR primitives; managed image assets and bounded normalization.
+3. Replaced character estimates with actual renderer text/geometry/font measurement, added safe-zone/bleed/mask exceptions, mandatory QR/pagination blocks, configurable severe blocks, crop marks and TrimBox. Prepared private PDFs pin publication snapshots/revisions.
+4. Added security/PDF/raster/decoder tests, real browser failure/conflict/recovery tests, disposable lifecycle scripts, and GitHub Actions against official pinned releases.
+5. Actual failure findings and fixes: v16 permission hooks must explicitly return True for allowed access; v16 list limits use `limit`; binary File content must remain bytes; normalize uploads before native EXIF processing; Redis request-local cached misses cannot initialize recovery keys reliably (use atomic SET NX EX); Bench requires patches.txt for app discovery; WeasyPrint 70 requires URLFetcherResponse for custom resources.
+6. The available v16.2.1 framework had an upstream Desktop Icon boot failure (`frappe.get_doc("Desktop Icon", dictionary)`), so release verification moved to a separately cloned official v16.56.0, Python 3.14 and Node 24, with its own virtual environment. No installed framework checkout was changed. Current v16 pins WeasyPrint 70, requiring the compatible response adapter.
+7. Runtime evidence moved out of /tmp after the previous usage-limit restart removed temporary services/logs. The private `.id-card-runtime` directory belongs to the surrounding bench and is never part of the application repository. All sites are explicitly marked disposable, use synthetic fixtures, and connect to a private socket database/Redis. Lifecycle uninstall refuses unmarked or incorrectly named sites.
+
+Remaining product boundaries are documented in README and ADMIN_GUIDE: safe declarative code rather than executable HTML/Jinja, no government verification, schematic gallery thumbnails, RGB rather than certified press-color output, Chromium browser coverage rather than untested browsers/printers. These are not silently reported as completed integrations.

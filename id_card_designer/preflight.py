@@ -1,10 +1,7 @@
 """Exact transformed physical bounds and actual WeasyPrint line/glyph layout, no character estimates."""
 
 import math
-from functools import lru_cache
-from pathlib import Path
 
-from fontTools.ttLib import TTFont
 from weasyprint.formatting_structure.boxes import LineBox, TextBox
 
 from id_card_designer.geometry import bounds, walk
@@ -19,11 +16,6 @@ def descendants(box):
     yield box
     for child in box.all_children():
         yield from descendants(child)
-
-
-@lru_cache(maxsize=1)
-def glyphs():
-    return set(TTFont(Path(__file__).parent / "public/fonts/FreeSerif.ttf").getBestCmap())
 
 
 def inspect(s, data, documents=None):
@@ -110,6 +102,7 @@ def inspect(s, data, documents=None):
         if len(document.pages) != 1:
             add("pagination", "error", side, "", "Each face must fit exactly one physical page.")
             continue
+        document._id_card_pdf = document.write_pdf()
         fonts = list(document.fonts.values())
         used_fonts.update(
             font.family.decode("utf-8", errors="replace")
@@ -117,19 +110,10 @@ def inspect(s, data, documents=None):
             else str(font.family)
             for font in fonts
         )
-        supported = set()
-        for font in fonts:
-            try:
-                supported.update(
-                    TTFont(
-                        __import__("io").BytesIO(font.file_content),
-                        fontNumber=getattr(font, "index", 0),
-                    ).getBestCmap()
-                    or {}
-                )
-            except Exception:
-                pass  # The PDF font remains embedded; unsupported font-table inspection is reported below.
-        document._id_card_pdf = document.write_pdf()
+        # The renderer records actual missing glyphs during PDF generation. This
+        # includes shaping/fallback and avoids false positives from subset cmaps
+        # where a rendered ligature replaces its individual Unicode characters.
+        missing_glyphs = set().union(*(set(getattr(font, "missing", {})) for font in fonts))
         boxes = list(descendants(document.pages[0]._page_box))
         owners = {}
         for box in boxes:
@@ -202,7 +186,7 @@ def inspect(s, data, documents=None):
                             )
             if isinstance(box, TextBox) and box.text.strip() and opacity > 0:
                 any_text = True
-                missing = {ord(c) for c in box.text if not c.isspace() and ord(c) not in supported}
+                missing = {ord(c) for c in box.text if not c.isspace() and ord(c) in missing_glyphs}
                 if missing:
                     add(
                         "missing_glyph",
