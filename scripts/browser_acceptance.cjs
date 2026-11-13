@@ -114,7 +114,7 @@ const loginFile=process.env.ID_CARD_LOGIN_FILE||"/tmp/id-card-runtime/browser-lo
   await page
     .locator('.modal:visible input[type="file"]')
     .setInputFiles(path.join(path.dirname(loginFile),"test-logo.png"));
-  await page.locator(".modal:visible .btn-primary").click();
+  await page.locator(".modal:visible .btn-primary, .modal:visible .btn-modal-primary").click();
   await page
     .locator('.ic-element img[src*="test-logo"]')
     .waitFor({ timeout: 30000 });
@@ -132,7 +132,7 @@ const loginFile=process.env.ID_CARD_LOGIN_FILE||"/tmp/id-card-runtime/browser-lo
   });
   // Conversion creates a separate draft; Ace changes are validated through a real PDF.
   await page.getByLabel("Mode", { exact: true }).selectOption("Code");
-  await page.locator(".modal:visible .btn-primary").click();
+  await page.locator(".modal:visible .btn-primary, .modal:visible .btn-modal-primary").click();
   await page
     .locator(".ic-code .ace_editor")
     .first()
@@ -179,7 +179,7 @@ const loginFile=process.env.ID_CARD_LOGIN_FILE||"/tmp/id-card-runtime/browser-lo
   const response = context.waitForEvent("response", (r) =>
     r.url().includes("api.deliver_pdf")
   );
-  await page.locator(".modal:visible .btn-primary").click();
+  await page.locator(".modal:visible .btn-primary, .modal:visible .btn-modal-primary").click();
   const pdfResponse = await response;
   assert.equal(pdfResponse.status(), 200);
   assert.match(pdfResponse.headers()["content-type"], /application\/pdf/);

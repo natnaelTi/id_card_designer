@@ -139,6 +139,7 @@ def save_draft(payload):
 def publish_template(name, modified=None):
     require("manage")
     lock()
+    frappe.db.sql("SELECT name FROM `tabID Card Template` WHERE name=%s FOR UPDATE", (name,))
     doc = template(name)
     doc.check_permission("write")
     if modified and str(doc.modified) != str(modified):
@@ -189,6 +190,7 @@ def duplicate_template(name):
 def set_default_template(name):
     require("manage")
     lock()
+    frappe.db.sql("SELECT name FROM `tabID Card Template` WHERE name=%s FOR UPDATE", (name,))
     doc = template(name, True)
     doc.check_permission("write")
     # Authority checked above. Direct DB update avoids editing protected demo content.
@@ -226,6 +228,7 @@ def list_revisions(name):
 def restore_revision(name, revision):
     require("manage")
     lock()
+    frappe.db.sql("SELECT name FROM `tabID Card Template` WHERE name=%s FOR UPDATE", (name,))
     doc = template(name)
     doc.check_permission("write")
     match = next(

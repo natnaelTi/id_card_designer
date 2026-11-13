@@ -20,7 +20,7 @@ def options(e):
     colors = [e.get("qr_dark", "#173b35"), e.get("qr_light", "#ffffff")]
     luminances = []
     for color in colors:
-        if not re.fullmatch("#[0-9a-fA-F]{6}", color):
+        if not isinstance(color, str) or not re.fullmatch("#[0-9a-fA-F]{6}", color):
             raise ValueError("Use six-digit QR colors.")
         rgb = [int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
         rgb = [x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4 for x in rgb]
