@@ -47,6 +47,10 @@ jobs:
             frappe: v15.121.2
             python: '3.12'
             node: '22'
+          - major: v16-early
+            frappe: v16.2.1
+            python: '3.14'
+            node: '24'
           - major: v16
             frappe: v16.56.0
             python: '3.14'
@@ -106,6 +110,11 @@ jobs:
           bench build --app frappe
           bench build --app id_card_designer
           bench --site "$ID_CARD_TEST_SITE" clear-cache
+      - name: Real Desk boot and navigation recovery
+        if: matrix.major != 'v15'
+        run: |
+          cd "$ID_CARD_BENCH_ROOT"
+          ./env/bin/python "$GITHUB_WORKSPACE/scripts/desktop_boot_acceptance.py"
       - name: Backend including real PDF raster and QR decoder
         run: |
           cd "$ID_CARD_BENCH_ROOT"

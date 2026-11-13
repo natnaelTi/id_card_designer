@@ -46,6 +46,8 @@ PDF bytes are generated on demand, never saved as public Files or cached on the 
 
 ## Troubleshooting
 
+- **Desk 500 with `Desktop Icon {... ID Card Designer ...} not found`:** this is the early-v16 icon loader interpreting a whole row as a name. Update this app to 0.2.1 or newer, run `bench --site SITE migrate` and `bench --site SITE clear-cache`, then reload Desk. Migration removes only the app-owned incompatible icon; templates, profiles and publications remain intact. On a managed demo instance, ask the host to update/redeploy the app from `main` and run the site migration. Workspace/sidebar navigation remains available; the extra desktop icon is omitted on affected loaders.
+
 - **No print action:** save the User and check both the ID Card Printer role and ordinary User read/print permissions.
 - **PDF expired:** reopen the dialog; do not share descriptor tokens or URLs.
 - **Image denied:** check attachment permissions and that its File is readable to the printing user.

@@ -18,7 +18,7 @@ A standalone Frappe app for designing and printing two-sided **institutional** I
 
 ## Compatibility and verification
 
-The supported matrix is Frappe **15.121.2 / Python 3.12 / Node 22** and **16.56.0 / Python 3.14 / Node 24**. See [TEST_RESULTS.md](TEST_RESULTS.md) for actual completed checks, exact versions and any release blockers. Early v16.2.1 has a reproducible upstream Desk desktop-icon boot failure and is not the release target. No core framework or unrelated app changes are required.
+The supported matrix is Frappe **15.121.2 / Python 3.12 / Node 22** and **16.56.0 / Python 3.14 / Node 24**. See [TEST_RESULTS.md](TEST_RESULTS.md) for actual completed checks, exact versions and any release blockers. Early v16.2.1 is included in the navigation regression matrix: the app detects its broken Desktop Icon loader and keeps workspace/sidebar navigation without registering the incompatible icon. Upgrading or migrating removes the app-owned icon left by 0.2.0. No core framework or unrelated app changes are required.
 
 Phase two adds automatic draft saving/recovery, nested affine groups, rich text, a managed shared asset library, safe organizational QR, measured print preflight, crop marks and TrimBox metadata. Read the [admin/user guide](ADMIN_GUIDE.md) for setup, controls, security and recovery, and [changelog](CHANGELOG.md) for changes.
 

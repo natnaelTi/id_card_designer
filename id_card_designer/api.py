@@ -338,6 +338,7 @@ def secure_pdf_headers(response, request=None):
                 "Referrer-Policy": "no-referrer",
                 "X-Content-Type-Options": "nosniff",
                 "Content-Security-Policy": "frame-ancestors 'self'",
+                "Content-Disposition": 'inline; filename="institutional-id.pdf"',
             }
         )
 
