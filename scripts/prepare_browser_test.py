@@ -11,10 +11,11 @@ from PIL import Image
 
 site = os.environ.get("ID_CARD_TEST_SITE", "id-card-designer-test.localhost")
 assert site.endswith("-test.localhost"), "Use a disposable test site only"
-bench = Path(__file__).resolve().parents[3]
+bench = Path(os.environ.get("ID_CARD_BENCH_ROOT", Path(__file__).resolve().parents[3]))
 os.chdir(bench / "sites")
 frappe.init(site=site, sites_path=str(bench / "sites"))
 frappe.connect()
+assert frappe.conf.get("id_card_test_fixture"), "Refusing an unmarked site"
 frappe.set_user("Administrator")
 password = secrets.token_urlsafe(32)
 update_password("Administrator", password)
@@ -45,9 +46,10 @@ for email, role in [
     actors.append(dict(usr=email, pwd=actor_password, can_print=role == "ID Card Printer"))
 frappe.db.commit()
 frappe.clear_cache()
-p = Path("/tmp/id-card-runtime/browser-login.json")
+p = Path(os.environ.get("ID_CARD_LOGIN_FILE", "/tmp/id-card-runtime/browser-login.json"))
+p.parent.mkdir(parents=True, exist_ok=True)
 p.write_text(json.dumps(dict(usr="Administrator", pwd=password, actors=actors)))
 p.chmod(0o600)
-Image.new("RGB", (700, 900), "#7d9d91").save("/tmp/id-card-runtime/test-logo.png")
+Image.new("RGB", (700, 900), "#7d9d91").save(p.parent / "test-logo.png")
 frappe.destroy()
 print("Disposable-site browser login fixture ready.")

@@ -3,6 +3,7 @@ import secrets
 
 import frappe
 
+from id_card_designer.compat import list_limit
 from id_card_designer.rendering import FIELDS, pdf, snapshot, thumbnail
 from id_card_designer.security import audience, audience_allowed, can, require, schema, user_data
 
@@ -59,7 +60,7 @@ def list_usable_templates():
         "ID Card Template",
         filters={"enabled": 1, "status": "Published"},
         pluck="name",
-        limit_page_length=200,
+        **list_limit(200),
     ):
         doc = frappe.get_doc("ID Card Template", name)
         if not audience_allowed(doc) or not doc.published_snapshot:
@@ -113,7 +114,13 @@ get_template = get_template_for_builder
 def save_draft(payload):
     require("design")
     p = frappe.parse_json(payload)
+    if not isinstance(p, dict):
+        frappe.throw("Draft must be a JSON object.")
     if p.get("name"):
+        # Lock before reading the optimistic version: two HTTP editors cannot both pass a stale check.
+        frappe.db.sql(
+            "SELECT name FROM `tabID Card Template` WHERE name=%s FOR UPDATE", (p["name"],)
+        )
         doc = template(p["name"])
         doc.check_permission("write")
         if str(doc.modified) != str(p.get("modified")):
@@ -129,11 +136,16 @@ def save_draft(payload):
 
 
 @frappe.whitelist(methods=["POST"])
-def publish_template(name):
+def publish_template(name, modified=None):
     require("manage")
     lock()
+    frappe.db.sql("SELECT name FROM `tabID Card Template` WHERE name=%s FOR UPDATE", (name,))
     doc = template(name)
     doc.check_permission("write")
+    if modified and str(doc.modified) != str(modified):
+        frappe.throw(
+            "Draft changed before publication; compare again.", frappe.TimestampMismatchError
+        )
     if doc.builtin:
         frappe.throw("Duplicate the protected sample first.")
     s = snapshot(doc)
@@ -141,6 +153,7 @@ def publish_template(name):
 
     for side in ("front", "back"):
         side_html(s, side, DEMO)
+    checked_pdf(s, DEMO, render=False)
     revisions = json.loads(doc.revisions or "[]")
     if doc.published_snapshot:
         revisions.append(dict(revision=doc.revision, snapshot=json.loads(doc.published_snapshot)))
@@ -177,6 +190,7 @@ def duplicate_template(name):
 def set_default_template(name):
     require("manage")
     lock()
+    frappe.db.sql("SELECT name FROM `tabID Card Template` WHERE name=%s FOR UPDATE", (name,))
     doc = template(name, True)
     doc.check_permission("write")
     # Authority checked above. Direct DB update avoids editing protected demo content.
@@ -213,6 +227,8 @@ def list_revisions(name):
 @frappe.whitelist(methods=["POST"])
 def restore_revision(name, revision):
     require("manage")
+    lock()
+    frappe.db.sql("SELECT name FROM `tabID Card Template` WHERE name=%s FOR UPDATE", (name,))
     doc = template(name)
     doc.check_permission("write")
     match = next(
@@ -229,7 +245,7 @@ def restore_revision(name, revision):
 def prepare_pdf(name, user=None, preview=0):
     preview = bool(int(preview))
     require("design" if preview else "print")
-    template(name, not preview)
+    doc = template(name, not preview)
     if user:
         user_data(user, not preview)
     elif not preview:
@@ -243,6 +259,8 @@ def prepare_pdf(name, user=None, preview=0):
             name=name,
             user=user,
             preview=preview,
+            snapshot=doc.published_snapshot if not preview else None,
+            revision=doc.revision,
         ),
         expires_in_sec=60,
     )
@@ -273,7 +291,7 @@ def deliver_pdf(token):
         frappe.throw("PDF link expired. Open the print dialog again.", frappe.PermissionError)
     if entry["preview"]:
         return render_preview_pdf(entry["name"], entry["user"])
-    return print_user_id(entry["name"], entry["user"])
+    return _print_user_id(entry["name"], entry["user"], entry)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -281,15 +299,21 @@ def render_preview_pdf(name, user=None):
     require("design")
     doc = template(name)
     data = user_data(user) if user else DEMO
-    respond(pdf(snapshot(doc), data))
+    respond(checked_pdf(snapshot(doc), data))
 
 
 @frappe.whitelist(methods=["POST"])
 def print_user_id(name, user):
+    return _print_user_id(name, user)
+
+
+def _print_user_id(name, user, prepared=None):
     require("print")
     doc = template(name, True)
     data = user_data(user, True)
-    raw = pdf(json.loads(doc.published_snapshot), data)
+    raw = checked_pdf(
+        json.loads(prepared["snapshot"] if prepared else doc.published_snapshot), data
+    )
     # Internal append-only audit event; no create permission granted to callers.
     log = frappe.get_doc(
         dict(
@@ -297,7 +321,7 @@ def print_user_id(name, user):
             printed_by=frappe.session.user,
             source_user=user,
             template=name,
-            revision=doc.revision,
+            revision=prepared["revision"] if prepared else doc.revision,
             result="Generated",
         )
     )
@@ -349,8 +373,148 @@ def list_assets(name):
             "is_folder": 0,
         },
         fields=["name", "file_name", "file_url"],
-        limit_page_length=50,
+        **list_limit(50),
     )
     return [
         f for f in files if (f.file_url or "").lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
     ]
+
+
+def checked_pdf(s, data, render=True):
+    from id_card_designer.preflight import inspect
+    from id_card_designer.rendering import render_pages
+
+    pages = render_pages(s, data)
+    report = inspect(s, data, pages)
+    if (s.get("block_severe") and report["errors"]) or any(
+        e["code"] in ("qr_geometry", "qr_opacity", "pagination") for e in report["errors"]
+    ):
+        frappe.throw(
+            "Preflight blocked: "
+            + "; ".join(e["code"] + " on " + e["side"] for e in report["errors"])
+        )
+    return pdf(s, data, pages) if render else report
+
+
+@frappe.whitelist(methods=["POST"])
+def revoke_pdf(token):
+    entry = frappe.cache().get_value("id-card:" + token)
+    if not entry:
+        return
+    if entry["owner"] != frappe.session.user:
+        require("manage")
+    frappe.cache().delete_value("id-card:" + token)
+
+
+@frappe.whitelist()
+def qr_preview(element, user=None):
+    require("design")
+    from id_card_designer.qr import make
+    from id_card_designer.rendering import scene
+
+    e = frappe.parse_json(element)
+    if not isinstance(e, dict) or e.get("type") != "qr":
+        frappe.throw("Choose a QR element.")
+    scene([e], 200, 150, 10)
+    try:
+        return make(e, user_data(user) if user else DEMO)
+    except ValueError as exc:
+        frappe.throw(str(exc))
+
+
+@frappe.whitelist(methods=["POST"])
+def convert_to_code(name):
+    require("design")
+    doc = template(name)
+
+    s = snapshot(doc)
+    if s["editor_mode"] != "Visual":
+        frappe.throw("Template is already in code mode.")
+    # The generated source retains the exact visual scene in a safe, declarative element.
+    # Explicit rendering contract preserves groups, bindings, conditions, QR and fallbacks.
+    copy = duplicate_template(name)
+    payload = {**copy, "editor_mode": "Code"}
+    for side in ("front", "back"):
+        import base64
+
+        encoded = base64.b64encode((s.get(side + "_layout") or "[]").encode()).decode()
+        payload[side + "_html"] = f'<ic-scene source="{encoded}"></ic-scene>'
+    return save_draft(payload)
+
+
+@frappe.whitelist(methods=["POST"])
+def draft_key():
+    """Per-login encryption key: not stored in the browser; other sessions cannot recover drafts."""
+    require("design")
+    import base64
+    import hashlib
+
+    scope = hashlib.sha256((frappe.session.user + str(frappe.session.sid)).encode()).hexdigest()
+    cache = frappe.cache()
+    key = cache.make_key("id-card-draft-key:" + scope)
+    # Atomic initialization across parallel tabs; bypass request-local cached misses.
+    cache.set(key, base64.b64encode(secrets.token_bytes(32)), ex=86400, nx=True)
+    value = cache.get(key)
+    return value.decode() if isinstance(value, bytes) else value
+
+
+@frappe.whitelist()
+def list_global_assets():
+    require("design")
+    from id_card_designer.rendering import asset
+
+    result = []
+    for row in frappe.get_list(
+        "ID Card Asset", fields=["name", "title", "image"], **list_limit(100)
+    ):
+        if row.image:
+            asset(row.image)
+            result.append(row)
+    return result
+
+
+@frappe.whitelist(methods=["POST"])
+def upload_asset():
+    """Frappe FileUploader method hook; decode before v16 can strip JPEG orientation."""
+    import re
+    from pathlib import Path
+
+    from id_card_designer.images import normalize, read_file
+
+    doctype, name = frappe.form_dict.doctype, frappe.form_dict.docname
+    if doctype not in ("ID Card Template", "ID Card Asset"):
+        frappe.throw("Choose a saved template or managed global asset.")
+    require("manage" if doctype == "ID Card Asset" else "design")
+    parent = frappe.get_doc(doctype, name)
+    parent.check_permission("write")
+    if doctype == "ID Card Template":
+        audience(parent)
+        if parent.builtin:
+            frappe.throw("Duplicate the protected sample before uploading assets.")
+    raw = getattr(frappe.local, "uploaded_file", None)
+    if raw is None:
+        source = frappe.form_dict.library_file_name
+        if not source:
+            frappe.throw("Remote image URLs are disabled. Upload a local image.")
+        raw = read_file(frappe.get_doc("File", source))
+    content = normalize(raw)
+    filename = (
+        re.sub(
+            r"[^\w.-]",
+            "_",
+            Path(getattr(frappe.local, "uploaded_filename", "image") or "image").stem,
+        )
+        + ".png"
+    )
+    file = frappe.get_doc(
+        dict(
+            doctype="File",
+            file_name=filename,
+            content=content,
+            is_private=1,
+            attached_to_doctype=doctype,
+            attached_to_name=name,
+        )
+    )
+    file.insert()
+    return file

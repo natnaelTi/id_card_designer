@@ -2,15 +2,21 @@ import io
 import json
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+
+try:
+    from frappe.tests import IntegrationTestCase, change_settings
+except ImportError:
+    from frappe.tests.utils import FrappeTestCase as IntegrationTestCase
+    from frappe.tests.utils import change_settings
 from pypdf import PdfReader
 
 from id_card_designer import api
 from id_card_designer.install import DEMO_NAME, seed
 
 
-class WorkflowTests(FrappeTestCase):
+class WorkflowTests(IntegrationTestCase):
     def setUp(self):
+        super().setUp()
         frappe.set_user("Administrator")
         for email, role in [
             ("designer@id.test", "ID Card Designer"),
@@ -34,6 +40,7 @@ class WorkflowTests(FrappeTestCase):
 
     def tearDown(self):
         frappe.set_user("Administrator")
+        super().tearDown()
 
     def test_seed_idempotent_and_protected(self):
         before = frappe.get_doc("ID Card Template", DEMO_NAME).published_snapshot
@@ -136,7 +143,8 @@ class WorkflowTests(FrappeTestCase):
         raw = frappe.local.response.filecontent
         pages = PdfReader(io.BytesIO(raw)).pages
         self.assertEqual(len(pages), 2)
-        self.assertIn("designer@id.test", pages[0].extract_text())
+        self.assertIn("designer", pages[0].extract_text())
+        self.assertIn("designer@id.test", "\n".join(page.extract_text() for page in pages))
         self.assertTrue(frappe.db.exists("ID Card Print Log", {"source_user": "designer@id.test"}))
 
     def test_field_schema_and_stale_draft(self):
@@ -171,10 +179,10 @@ class WorkflowTests(FrappeTestCase):
         self.assertFalse(frappe.has_permission("ID Card Profile", "read", doc=profile))
 
     def test_private_image_permission_and_invalid_content(self):
-        from frappe.utils.file_manager import save_file
         from PIL import Image
 
         from id_card_designer.rendering import asset
+        from id_card_designer.testing import save_file
 
         out = io.BytesIO()
         Image.new("RGB", (600, 600), "teal").save(out, format="PNG")
@@ -209,8 +217,9 @@ class WorkflowTests(FrappeTestCase):
             frappe.get_doc("ID Card Template", d.name).check_permission("read")
 
     def test_private_template_asset_is_usable_by_authorized_printer(self):
-        from frappe.utils.file_manager import save_file
         from PIL import Image
+
+        from id_card_designer.testing import save_file
 
         out = io.BytesIO()
         Image.new("RGB", (700, 900), "teal").save(out, format="PNG")
@@ -238,17 +247,22 @@ class WorkflowTests(FrappeTestCase):
     def test_image_orientation_and_transparency_survive_normalization(self):
         import base64
 
-        from frappe.utils.file_manager import save_file
         from PIL import Image
 
         from id_card_designer.rendering import asset
+        from id_card_designer.testing import save_file
 
         image = Image.new("RGB", (40, 20), "teal")
         exif = Image.Exif()
         exif[274] = 6
         out = io.BytesIO()
         image.save(out, format="JPEG", exif=exif)
-        file = save_file("rotated-photo.jpg", out.getvalue(), "User", "Administrator", is_private=1)
+        # v16 strips EXIF at generic upload by default. Preserve the orientation in
+        # this fixture to test our normalizer itself; the app uploader normalizes before insert.
+        with change_settings("System Settings", strip_exif_metadata_from_uploaded_images=0):
+            file = save_file(
+                "rotated-photo.jpg", out.getvalue(), "User", "Administrator", is_private=1
+            )
         normalized = Image.open(io.BytesIO(base64.b64decode(asset(file.file_url).split(",", 1)[1])))
         self.assertEqual(normalized.size, (20, 40))
         out = io.BytesIO()
@@ -258,3 +272,68 @@ class WorkflowTests(FrappeTestCase):
         )
         normalized = Image.open(io.BytesIO(base64.b64decode(asset(file.file_url).split(",", 1)[1])))
         self.assertEqual(normalized.getpixel((0, 0))[3], 0)
+
+    def test_prepared_pdf_pins_revision_and_revocation(self):
+        published = api.publish_template(self.copy["name"])
+        token = api.prepare_pdf(published["name"], "designer@id.test")["token"]
+        front = json.loads(published["front_layout"])
+        front.append(dict(type="text", x=5, y=10, width=70, height=5, text="NEW REVISION MARKER"))
+        published["front_layout"] = json.dumps(front)
+        api.save_draft(published)
+        api.publish_template(published["name"])
+        api.deliver_pdf(token)
+        text = "\n".join(
+            p.extract_text() for p in PdfReader(io.BytesIO(frappe.local.response.filecontent)).pages
+        )
+        self.assertNotIn("NEW REVISION MARKER", text)
+        api.revoke_pdf(token)
+        with self.assertRaises(frappe.PermissionError):
+            api.deliver_pdf(token)
+
+    def test_publish_rejects_stale_editor_and_blocked_geometry(self):
+        stale = dict(self.copy)
+        current = dict(self.copy, title="Concurrent saved draft")
+        current = api.save_draft(current)
+        with self.assertRaises(frappe.TimestampMismatchError):
+            api.save_draft(stale)
+        with self.assertRaises(frappe.TimestampMismatchError):
+            api.publish_template(current["name"], stale["modified"])
+        current["block_severe"] = 1
+        current["front_layout"] = json.dumps(
+            [dict(type="text", x=75, y=0, width=10, height=5, rotation=45, text="Outside")]
+        )
+        current = api.save_draft(current)
+        with self.assertRaises(frappe.ValidationError):
+            api.publish_template(current["name"], current["modified"])
+        self.assertFalse(frappe.get_doc("ID Card Template", current["name"]).published_snapshot)
+
+    def test_qr_preview_authorization_and_sensitive_bindings(self):
+        element = dict(type="qr", x=5, y=5, width=25, height=25, text="ORG-DEMO")
+        self.assertTrue(
+            api.qr_preview(json.dumps(element)).startswith("data:image/svg+xml;base64,")
+        )
+        with self.assertRaises(frappe.PermissionError):
+            frappe.set_user("plain@id.test")
+            api.qr_preview(json.dumps(element))
+        frappe.set_user("designer@id.test")
+        with self.assertRaises(frappe.PermissionError):
+            api.qr_preview(json.dumps(element), "Administrator")
+        with self.assertRaises(frappe.ValidationError):
+            api.qr_preview(json.dumps(dict(element, field="email")))
+
+    def test_session_bound_recovery_key_and_no_source_data(self):
+        first = api.draft_key()
+        self.assertEqual(first, api.draft_key())
+        frappe.set_user("designer@id.test")
+        self.assertNotEqual(first, api.draft_key())
+        self.assertNotIn("api_secret", json.dumps(api.get_field_schema()))
+
+    def test_asset_upload_rejects_unrelated_target_and_script(self):
+        frappe.local.form_dict = frappe._dict(doctype="User", docname="Administrator")
+        with self.assertRaises(frappe.ValidationError):
+            api.upload_asset()
+        frappe.local.form_dict = frappe._dict(doctype="ID Card Template", docname=self.copy["name"])
+        frappe.local.uploaded_file = b'<svg onload="alert(1)"></svg>'
+        frappe.local.uploaded_filename = "unsafe.svg"
+        with self.assertRaises(frappe.ValidationError):
+            api.upload_asset()

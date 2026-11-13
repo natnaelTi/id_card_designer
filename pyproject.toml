@@ -3,11 +3,11 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "id_card_designer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Institutional two-sided ID cards for Frappe"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["weasyprint>=62,<70", "pypdf>=4", "Pillow>=10", "beautifulsoup4", "tinycss2"]
+dependencies = ["weasyprint>=62,<71", "pypdf>=4", "Pillow>=10", "beautifulsoup4", "tinycss2", "segno>=1.6,<2"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["id_card_designer*"]

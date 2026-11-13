@@ -16,4 +16,10 @@ has_permission = {
 permission_query_conditions = {
     "ID Card Profile": "id_card_designer.id_card_designer.doctype.id_card_profile.id_card_profile.get_permission_query_conditions"
 }
-app_include_js = ["/assets/id_card_designer/js/pdf_client.js"]
+app_include_js = [
+    "/assets/id_card_designer/js/pdf_client.js",
+    "/assets/id_card_designer/js/autosave.js",
+    "/assets/id_card_designer/js/scene.js",
+]
+scheduler_events = {"daily": ["id_card_designer.maintenance.prune_audit"]}
+before_tests = "id_card_designer.testing.bootstrap"

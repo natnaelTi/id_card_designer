@@ -9,9 +9,17 @@ from id_card_designer import rendering as r
 from id_card_designer.api import DEMO
 from id_card_designer.install import sample
 
+try:
+    from frappe.tests import UnitTestCase
+except ImportError:
+    UnitTestCase = unittest.TestCase
+if not getattr(r.frappe.local, "site", None):
+    UnitTestCase = unittest.TestCase
 
-class RenderingTests(unittest.TestCase):
+
+class RenderingTests(UnitTestCase):
     def setUp(self):
+        super().setUp()
         self.s = {k: sample().get(k) for k in r.FIELDS}
         self.throw = patch.object(r, "fail", side_effect=ValueError)
         self.throw.start()
@@ -143,5 +151,6 @@ class RenderingTests(unittest.TestCase):
         self.s["front_layout"] = json.dumps(elements)
         source = r.side_html(self.s, "front", DEMO)
         soup = BeautifulSoup(source, "html.parser")
-        self.assertEqual(set(soup.div.attrs), {"style"})
+        self.assertEqual(set(soup.div.attrs), {"style", "data-ic-path"})
+        self.assertEqual(soup.div["data-ic-path"], "0")
         self.assertIn("&quot;", source)

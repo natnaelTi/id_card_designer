@@ -1,0 +1,77 @@
+{
+  "pages": 2,
+  "sizes_mm": [
+    [
+      85.59999989722222,
+      53.979999919444445
+    ],
+    [
+      85.59999989722222,
+      53.979999919444445
+    ]
+  ],
+  "qr_payload": "ORG-DEMO-0001",
+  "qr_decoder": "zxing-cpp 3.1.1",
+  "raster_dpi": 300,
+  "fonts": [
+    "FreeSerif"
+  ],
+  "preflight": {
+    "width_mm": 85.6,
+    "height_mm": 53.98,
+    "media_width_mm": 85.6,
+    "media_height_mm": 53.98,
+    "pages": 2,
+    "issues": [
+      {
+        "code": "safe_zone",
+        "severity": "warning",
+        "side": "front",
+        "path": "1",
+        "message": "Element touches the configured safe zone.",
+        "bounds_mm": [
+          4.0,
+          1.0,
+          81.0,
+          6.0
+        ]
+      },
+      {
+        "code": "safe_zone",
+        "severity": "warning",
+        "side": "front",
+        "path": "13",
+        "message": "Element touches the configured safe zone.",
+        "bounds_mm": [
+          4.0,
+          47.0,
+          82.0,
+          52.0
+        ]
+      },
+      {
+        "code": "safe_zone",
+        "severity": "warning",
+        "side": "back",
+        "path": "6",
+        "message": "Element touches the configured safe zone.",
+        "bounds_mm": [
+          5.0,
+          47.0,
+          81.0,
+          52.0
+        ]
+      }
+    ],
+    "warnings": [
+      "front element 1: Element touches the configured safe zone.",
+      "front element 13: Element touches the configured safe zone.",
+      "back element 6: Element touches the configured safe zone."
+    ],
+    "errors": [],
+    "fonts_used": [
+      "FreeSerif"
+    ],
+    "font": "Embedded fonts: FreeSerif; actual layout measured by WeasyPrint."
+  }
+}

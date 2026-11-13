@@ -1,0 +1,138 @@
+name: Verify
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: python -m pip install ruff==0.17.5 build
+      - run: ruff check . && ruff format --check .
+      - run: npm ci --ignore-scripts
+      - run: npm run test:unit
+      - run: node --check id_card_designer/id_card_designer/page/id_card_builder/id_card_builder.js
+      - run: python -m compileall -q id_card_designer scripts
+      - run: python -m build --wheel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: dist/*.whl
+  framework:
+    name: Frappe ${{ matrix.major }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - major: v15
+            frappe: v15.121.2
+            python: '3.12'
+            node: '22'
+          - major: v16
+            frappe: v16.56.0
+            python: '3.14'
+            node: '24'
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping" --health-interval=5s --health-retries=12
+    env:
+      ID_CARD_TEST_SITE: id-card-designer-test.localhost
+      ID_CARD_DB_HOST: 127.0.0.1
+      ID_CARD_DB_ROOT_PASSWORD: root
+      ID_CARD_DB_SCOPE: '%'
+      ID_CARD_REDIS: redis://127.0.0.1:6379
+      ID_CARD_LOGIN_FILE: /tmp/id-card-ci/browser-login.json
+      ID_CARD_TEST_URL: http://id-card-designer-test.localhost:8028
+      CI: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Native PDF libraries and bench
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 libmariadb-dev pkg-config
+          python -m pip install frappe-bench==5.31.0
+          npm install -g yarn@1.22.22
+      - name: Isolated pinned framework
+        run: |
+          bench init --frappe-branch ${{ matrix.frappe }} --python "$(which python)" --skip-assets --skip-redis-config-generation --no-procfile "$RUNNER_TEMP/id-card-bench"
+          mkdir -p "$RUNNER_TEMP/id-card-bench/config/pids"
+          cd "$RUNNER_TEMP/id-card-bench"
+          bench get-app --skip-assets "$GITHUB_WORKSPACE"
+          ./env/bin/pip install -r "$GITHUB_WORKSPACE/requirements-dev.txt"
+          echo "ID_CARD_BENCH_ROOT=$RUNNER_TEMP/id-card-bench" >> "$GITHUB_ENV"
+      - name: Install, migrate, backup-preservation gates
+        run: |
+          cd "$ID_CARD_BENCH_ROOT"
+          ./env/bin/python "$GITHUB_WORKSPACE/scripts/setup_acceptance_site.py"
+          ./env/bin/python "$GITHUB_WORKSPACE/scripts/lifecycle_acceptance.py" preserve
+          bench build --app frappe
+          bench build --app id_card_designer
+          bench --site "$ID_CARD_TEST_SITE" clear-cache
+      - name: Backend including real PDF raster and QR decoder
+        run: |
+          cd "$ID_CARD_BENCH_ROOT"
+          bench --site "$ID_CARD_TEST_SITE" run-tests --app id_card_designer
+      - name: Browser dependencies and server
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          cd "$ID_CARD_BENCH_ROOT"
+          ./env/bin/python "$GITHUB_WORKSPACE/scripts/prepare_browser_test.py"
+          ./env/bin/gunicorn --daemon --bind 127.0.0.1:8028 --workers 2 --timeout 120 --pid /tmp/id-card-ci/web.pid --chdir "$ID_CARD_BENCH_ROOT/sites" --pythonpath "$GITHUB_WORKSPACE/scripts" --error-logfile /tmp/id-card-ci/web.log dev_wsgi:application
+      - name: Original workflow and phase-two E2E, desktop and narrow
+        env:
+          ID_CARD_ARTIFACT_DIR: artifacts/phase2/${{ matrix.major }}
+        run: |
+          npm run test:browser
+          npm run test:phase2
+      - name: Uninstall/reinstall on disposable site only
+        run: |
+          cd "$ID_CARD_BENCH_ROOT"
+          ./env/bin/python "$GITHUB_WORKSPACE/scripts/lifecycle_acceptance.py" reinstall
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evidence-${{ matrix.major }}
+          path: |
+            artifacts/phase2/${{ matrix.major }}
+            /tmp/id-card-ci/web.log
+            ${{ runner.temp }}/id-card-bench/logs/frappe.testing.log
+          if-no-files-found: warn

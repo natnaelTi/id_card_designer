@@ -17,6 +17,27 @@ class IDCardSettings(Document):
         for role in (self.printing_roles or "").splitlines():
             if not frappe.db.exists("Role", role):
                 frappe.throw("Unknown printing role: " + role)
+        if self.qr_application_origin:
+            from urllib.parse import urlsplit
+
+            url = urlsplit(self.qr_application_origin)
+            if (
+                url.scheme != "https"
+                or not url.hostname
+                or url.username
+                or url.password
+                or url.path not in ("", "/")
+                or url.query
+                or url.fragment
+            ):
+                frappe.throw(
+                    "QR application origin must be an HTTPS origin without credentials, path, query or fragment."
+                )
+        if (
+            self.audit_retention_days is not None
+            and not 1 <= int(self.audit_retention_days or 90) <= 3650
+        ):
+            frappe.throw("Audit retention must be 1–3650 days.")
         old = self.get_doc_before_save()
         if (
             old

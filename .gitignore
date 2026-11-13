@@ -3,6 +3,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 node_modules/
+artifacts/**/*.pdf
 artifacts/*.pdf
 build/
 dist/

@@ -199,3 +199,6 @@ def seed():
             ).insert()
     finally:
         frappe.flags.in_id_card_seed = False
+    from id_card_designer.navigation import seed_navigation
+
+    seed_navigation()
