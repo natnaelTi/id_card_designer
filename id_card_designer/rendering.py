@@ -485,9 +485,16 @@ def render_pages(s, data):
             ("data:image/png;base64,", "data:font/ttf;base64,", "data:image/svg+xml;base64,")
         ):
             header, encoded = url.split(",", 1)
-            return dict(string=base64.b64decode(encoded), mime_type=header[5:].split(";")[0])
+            content = base64.b64decode(encoded, validate=True)
+            mime = header[5:].split(";")[0]
+            try:
+                from weasyprint.urls import URLFetcherResponse
+            except ImportError:
+                return dict(string=content, mime_type=mime)
+            return URLFetcherResponse(url, body=content, headers={"Content-Type": mime})
         raise ValueError("External resources are disabled")
 
+    fetch._fail_on_errors = True
     return [HTML(string=face, url_fetcher=fetch).render() for face in document_html(s, data)]
 
 
