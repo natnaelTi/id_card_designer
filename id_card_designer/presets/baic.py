@@ -241,6 +241,17 @@ def scenes(assets):
     portrait = image("", 3.8, 15.5, 21.3, 27.3, **{"object-fit": "cover", "border-radius": "1.2mm"})
     portrait.update(field="user_image", visible_if="user_image")
     front.append(portrait)
+    # Keep the approved 0.4pt outline independent of the cover-cropped photo.
+    outline = shape(
+        3.8,
+        15.5,
+        21.3,
+        27.3,
+        "transparent",
+        **{"border": "0.4pt solid #A9BCAA", "border-radius": "1.2mm"},
+    )
+    outline.update(name="Portrait outline", visible_if="user_image")
+    front.append(outline)
     front.extend(
         [
             text("FULL NAME", 29, 17, 52.8, 4.65, color=MUTED),
@@ -411,7 +422,9 @@ def setup(bundle_path):
     from id_card_designer.security import require
 
     require("manage")
-    if not frappe.get_meta("ID Card Template").has_field("preset_key") or not frappe.get_meta("ID Card Profile").has_field("anointment_date"):
+    if not frappe.get_meta("ID Card Template").has_field("preset_key") or not frappe.get_meta(
+        "ID Card Profile"
+    ).has_field("anointment_date"):
         frappe.throw("Run the site migration before importing the BAIC preset.")
     if frappe.db.exists("ID Card Template", NAME):
         return dict(name=NAME, created=False)
