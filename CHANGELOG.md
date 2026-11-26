@@ -19,3 +19,10 @@
 ## 0.1.0
 
 Initial two-face templates, protected demo, publication/default/revision workflow, User-form private PDF printing, visual/code editors and profile bindings.
+
+## Unreleased — optional BAIC Vision Partnership Card
+
+- Add editable, private-import BAIC front/back preset and Profile-based mappings without requiring a BAIC business app.
+- Add explicit Ethiopian calendar conversion for anointment dates, context-specific role translations, optional-field visibility and issuance-only required-data checks.
+- Package local licensed Open Sans/Noto Sans Ethiopic; add measured bounded text fitting and decorative bleed extension while preserving legacy templates.
+- Keep fictional/blank previews distinct from live printing, preserve private assets and the ordinary publication/session/revision/permission model.

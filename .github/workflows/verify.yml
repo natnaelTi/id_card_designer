@@ -132,6 +132,16 @@ jobs:
         run: |
           npm run test:browser
           npm run test:phase2
+      - name: BAIC designer, publication and User printing (synthetic assets only)
+        env:
+          ID_CARD_ARTIFACT_DIR: /tmp/id-card-ci/baic-evidence
+          ID_CARD_BAIC_FIXTURE: /tmp/id-card-ci/baic-fixture.json
+        run: |
+          cd "$ID_CARD_BENCH_ROOT"
+          ./env/bin/python -c 'from pathlib import Path; from id_card_designer.tests.test_baic import synthetic_bundle; p=Path("/tmp/id-card-ci/baic-bundle"); p.mkdir(parents=True); synthetic_bundle(p)'
+          ./env/bin/python "$GITHUB_WORKSPACE/scripts/prepare_baic_acceptance.py" --bundle /tmp/id-card-ci/baic-bundle --output "$ID_CARD_BAIC_FIXTURE"
+          cd "$GITHUB_WORKSPACE"
+          node scripts/browser_baic.cjs
       - name: Uninstall/reinstall on disposable site only
         run: |
           cd "$ID_CARD_BENCH_ROOT"
@@ -143,5 +153,6 @@ jobs:
           path: |
             artifacts/phase2/${{ matrix.major }}
             /tmp/id-card-ci/web.log
+            /tmp/id-card-ci/baic-evidence
             ${{ runner.temp }}/id-card-bench/logs/frappe.testing.log
           if-no-files-found: warn

@@ -229,6 +229,12 @@ class BAICUnitTests(UnitTestCase):
         e["text"] = "VERY LONG NAME " * 80
         s["front_layout"] = json.dumps([e])
         self.assertTrue([i for i in r.preflight(s, {})["errors"] if i["code"] == "text_clipped"])
+        e["text"] = "የራዕይ ተካፋይ " * 80
+        e["style"]["font-family"] = "Noto Sans Ethiopic"
+        s["front_layout"] = json.dumps([e], ensure_ascii=False)
+        errors = r.preflight(s, {})["errors"]
+        self.assertTrue(any(i["code"] == "text_clipped" for i in errors))
+        self.assertFalse(any(i["code"] == "missing_glyph" for i in errors))
 
 
 class BAICWorkflowTests(IntegrationTestCase):
