@@ -26,6 +26,17 @@ DEMO = dict(
 )
 
 
+def render_data(s, user=None, *, printing=False, variant="demo"):
+    if variant not in ("demo", "design"):
+        frappe.throw("Choose a supported fictional preview.")
+    source = user_data(user, printing) if user else None
+    if s.get("preset_key") == "baic-vision-v1":
+        from id_card_designer.presets.baic import context
+
+        return context(s, source, preview=not printing, variant=variant)
+    return source if source is not None else DEMO
+
+
 def template(name, live=False):
     doc = frappe.get_doc("ID Card Template", name)
     doc.check_permission("read")
@@ -151,9 +162,10 @@ def publish_template(name, modified=None):
     s = snapshot(doc)
     from id_card_designer.rendering import side_html
 
+    data = render_data(s)
     for side in ("front", "back"):
-        side_html(s, side, DEMO)
-    checked_pdf(s, DEMO, render=False)
+        side_html(s, side, data)
+    checked_pdf(s, data, render=False)
     revisions = json.loads(doc.revisions or "[]")
     if doc.published_snapshot:
         revisions.append(dict(revision=doc.revision, snapshot=json.loads(doc.published_snapshot)))
@@ -213,9 +225,9 @@ def get_field_schema():
 
 
 @frappe.whitelist()
-def get_preview_data(user=None):
+def get_preview_data(user=None, name=None, variant="demo"):
     require("design")
-    return user_data(user) if user else DEMO
+    return render_data(snapshot(template(name)) if name else {}, user, variant=variant)
 
 
 @frappe.whitelist()
@@ -242,7 +254,9 @@ def restore_revision(name, revision):
 
 
 @frappe.whitelist(methods=["POST"])
-def prepare_pdf(name, user=None, preview=0):
+def prepare_pdf(name, user=None, preview=0, variant="demo"):
+    if variant not in ("demo", "design"):
+        frappe.throw("Choose a supported fictional preview.")
     preview = bool(int(preview))
     require("design" if preview else "print")
     doc = template(name, not preview)
@@ -259,6 +273,7 @@ def prepare_pdf(name, user=None, preview=0):
             name=name,
             user=user,
             preview=preview,
+            variant=variant if preview else "demo",
             snapshot=doc.published_snapshot if not preview else None,
             revision=doc.revision,
         ),
@@ -290,16 +305,16 @@ def deliver_pdf(token):
     ):
         frappe.throw("PDF link expired. Open the print dialog again.", frappe.PermissionError)
     if entry["preview"]:
-        return render_preview_pdf(entry["name"], entry["user"])
+        return render_preview_pdf(entry["name"], entry["user"], entry.get("variant", "demo"))
     return _print_user_id(entry["name"], entry["user"], entry)
 
 
 @frappe.whitelist(methods=["POST"])
-def render_preview_pdf(name, user=None):
+def render_preview_pdf(name, user=None, variant="demo"):
     require("design")
     doc = template(name)
-    data = user_data(user) if user else DEMO
-    respond(checked_pdf(snapshot(doc), data))
+    s = snapshot(doc)
+    respond(checked_pdf(s, render_data(s, user, variant=variant)))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -310,10 +325,9 @@ def print_user_id(name, user):
 def _print_user_id(name, user, prepared=None):
     require("print")
     doc = template(name, True)
-    data = user_data(user, True)
-    raw = checked_pdf(
-        json.loads(prepared["snapshot"] if prepared else doc.published_snapshot), data
-    )
+    s = json.loads(prepared["snapshot"] if prepared else doc.published_snapshot)
+    data = render_data(s, user, printing=True)
+    raw = checked_pdf(s, data)
     # Internal append-only audit event; no create permission granted to callers.
     log = frappe.get_doc(
         dict(
@@ -344,11 +358,26 @@ def secure_pdf_headers(response, request=None):
 
 
 @frappe.whitelist()
-def preflight_template(name, user=None):
+def preflight_template(name, user=None, variant="demo"):
     require("design")
     from id_card_designer.rendering import preflight
 
-    return preflight(snapshot(template(name)), user_data(user) if user else DEMO)
+    s = snapshot(template(name))
+    data = render_data(s, user, variant=variant)
+    from id_card_designer.presets.baic import required_issues
+
+    issues = required_issues(s, data)
+    if issues:
+        return dict(
+            width_mm=s["width_mm"],
+            height_mm=s["height_mm"],
+            pages=2,
+            issues=issues,
+            errors=issues,
+            warnings=[e["message"] for e in issues],
+            font="Configure required BAIC data first.",
+        )
+    return preflight(s, data)
 
 
 @frappe.whitelist()
@@ -383,8 +412,12 @@ def list_assets(name):
 
 def checked_pdf(s, data, render=True):
     from id_card_designer.preflight import inspect
+    from id_card_designer.presets.baic import required_issues
     from id_card_designer.rendering import render_pages
 
+    missing = required_issues(s, data)
+    if missing:
+        frappe.throw("BAIC preflight blocked: " + "; ".join(e["message"] for e in missing))
     pages = render_pages(s, data)
     report = inspect(s, data, pages)
     if (s.get("block_severe") and report["errors"]) or any(
@@ -408,7 +441,7 @@ def revoke_pdf(token):
 
 
 @frappe.whitelist()
-def qr_preview(element, user=None):
+def qr_preview(element, user=None, name=None, variant="demo"):
     require("design")
     from id_card_designer.qr import make
     from id_card_designer.rendering import scene
@@ -418,7 +451,7 @@ def qr_preview(element, user=None):
         frappe.throw("Choose a QR element.")
     scene([e], 200, 150, 10)
     try:
-        return make(e, user_data(user) if user else DEMO)
+        return make(e, render_data(snapshot(template(name)) if name else {}, user, variant=variant))
     except ValueError as exc:
         frappe.throw(str(exc))
 

@@ -7,8 +7,6 @@ import json
 import math
 import re
 from datetime import datetime
-from functools import lru_cache
-from pathlib import Path
 
 import frappe
 import tinycss2
@@ -29,6 +27,8 @@ FIELDS = (
     "safe_margin_mm",
     "block_severe",
     "crop_marks",
+    "preset_key",
+    "demo_portrait",
 )
 TYPES = {"text", "richtext", "image", "shape", "line", "group", "qr"}
 STYLE_KEYS = {
@@ -45,6 +45,7 @@ STYLE_KEYS = {
     "padding",
     "object-fit",
     "letter-spacing",
+    "white-space",
 }
 CSS_PROPERTIES = STYLE_KEYS | {
     "width",
@@ -281,7 +282,9 @@ def scene(raw, w, h, bleed=0, depth=0, budget=None):
             if k not in STYLE_KEYS:
                 fail("Unsupported element style.")
             declarations(f"{k}:{v}")
-        for flag in ("clip", "allow_clip", "allow_bleed", "locked"):
+        if e.get("fit_min_pt") is not None:
+            number(e["fit_min_pt"], 4, 24)
+        for flag in ("clip", "allow_clip", "allow_bleed", "locked", "bleed_background"):
             if flag in e and not isinstance(e[flag], bool):
                 fail("Element flags must be booleans.")
         if e.get("date_format") not in (None, "", "%Y-%m-%d", "%d %b %Y", "%d/%m/%Y"):
@@ -290,6 +293,8 @@ def scene(raw, w, h, bleed=0, depth=0, budget=None):
 
 
 def validate(s):
+    if s.get("preset_key") not in (None, "", "baic-vision-v1"):
+        fail("Unknown preset policy.")
     w = number(s.get("width_mm"), 20, 200)
     h = number(s.get("height_mm"), 20, 150)
     s.update(width_mm=w, height_mm=h, bleed_mm=number(s.get("bleed_mm") or 0, 0, 10))
@@ -306,6 +311,9 @@ def validate(s):
     s["crop_marks"] = int(bool(s.get("crop_marks")))
     if s["crop_marks"] and s["bleed_mm"] < 3:
         fail("Crop marks require at least 3 mm bleed.")
+    if not s.get("preset_key") and not s.get("demo_portrait"):
+        s.pop("preset_key", None)
+        s.pop("demo_portrait", None)
     return s
 
 
@@ -313,7 +321,7 @@ def snapshot(doc):
     return validate({k: doc.get(k) for k in FIELDS})
 
 
-def asset(url):
+def asset(url, pad=0, width=0, height=0):
     if not url:
         return ""
     if not re.fullmatch(r"/(private/)?files/[^?#]+", url):
@@ -326,6 +334,26 @@ def asset(url):
     from id_card_designer.images import normalize, read_file
 
     content = normalize(read_file(file))
+    if pad:
+        from PIL import Image
+
+        raw = Image.open(io.BytesIO(content)).convert("RGBA")
+        px, py = round(raw.width * pad / width), round(raw.height * pad / height)
+        out = Image.new("RGBA", (raw.width + 2 * px, raw.height + 2 * py))
+        out.paste(raw, (px, py))
+        out.paste(raw.crop((0, 0, 1, raw.height)).resize((px, raw.height)), (0, py))
+        out.paste(
+            raw.crop((raw.width - 1, 0, raw.width, raw.height)).resize((px, raw.height)),
+            (px + raw.width, py),
+        )
+        out.paste(out.crop((0, py, out.width, py + 1)).resize((out.width, py)), (0, 0))
+        out.paste(
+            out.crop((0, py + raw.height - 1, out.width, py + raw.height)).resize((out.width, py)),
+            (0, py + raw.height),
+        )
+        buf = io.BytesIO()
+        out.save(buf, format="PNG")
+        content = buf.getvalue()
     return "data:image/png;base64," + base64.b64encode(content).decode()
 
 
@@ -384,11 +412,14 @@ def side_html(s, side, data):
             tag.replace_with(img)
         return str(soup)
     return render_elements(
-        scene(s.get(side + "_layout"), s["width_mm"], s["height_mm"], s.get("bleed_mm") or 0), data
+        scene(s.get(side + "_layout"), s["width_mm"], s["height_mm"], s.get("bleed_mm") or 0),
+        data,
+        bleed=s.get("bleed_mm") or 0,
+        trim=(s["width_mm"], s["height_mm"]),
     )
 
 
-def render_elements(items, data, prefix=""):
+def render_elements(items, data, prefix="", bleed=0, trim=None):
     from id_card_designer.geometry import css_matrix, transform
 
     output = []
@@ -396,6 +427,20 @@ def render_elements(items, data, prefix=""):
         path = f"{prefix}.{index}" if prefix else str(index)
         if e.get("visible_if") and not data.get(e["visible_if"]):
             continue
+        pad = bleed if e.get("bleed_background") and not prefix else 0
+        if pad:
+            tw, th = trim or (e["width"], e["height"])
+            left = pad if abs(e["x"]) < 0.01 else 0
+            top = pad if abs(e["y"]) < 0.01 else 0
+            right = pad if abs(e["x"] + e["width"] - tw) < 0.01 else 0
+            bottom = pad if abs(e["y"] + e["height"] - th) < 0.01 else 0
+            e = dict(
+                e,
+                x=e["x"] - left,
+                y=e["y"] - top,
+                width=e["width"] + left + right,
+                height=e["height"] + top + bottom,
+            )
         style = f"position:absolute;left:0;top:0;width:{e['width']}mm;height:{e['height']}mm;transform-origin:0 0;transform:{css_matrix(transform(e))};overflow:{'hidden' if e.get('clip') or e['type'] != 'group' else 'visible'};box-sizing:border-box;overflow-wrap:anywhere;"
         style += declarations(";".join(f"{k}:{v}" for k, v in e.get("style", {}).items()))
         content = html.escape(text_value(e, data))
@@ -406,7 +451,7 @@ def render_elements(items, data, prefix=""):
             src = data.get(e.get("field"), "") or e.get("src", "")
             fit = html.escape(str(e.get("style", {}).get("object-fit", "cover")), quote=True)
             content = (
-                f'<img style="width:100%;height:100%;object-fit:{fit}" src="{asset(src)}">'
+                f'<img style="width:100%;height:100%;object-fit:{fit}" src="{asset(src, pad, e["width"] - 2 * pad, e["height"] - 2 * pad)}">'
                 if src
                 else html.escape(e.get("fallback") or "No photo")
             )
@@ -426,20 +471,17 @@ def render_elements(items, data, prefix=""):
                 + render_elements(e["children"], data, path)
                 + "</div>"
             )
+        fitting = f' data-ic-fit-min="{e["fit_min_pt"]}"' if e.get("fit_min_pt") else ""
         output.append(
-            f'<div data-ic-path="{path}" style="{html.escape(style, quote=True)}">{content}</div>'
+            f'<div{fitting} data-ic-path="{path}" style="{html.escape(style, quote=True)}">{content}</div>'
         )
     return "".join(output)
 
 
-@lru_cache(maxsize=1)
 def font_css():
-    raw = (Path(__file__).parent / "public/fonts/FreeSerif.ttf").read_bytes()
-    return (
-        "@font-face{font-family:FreeSerif;src:url(data:font/ttf;base64,"
-        + base64.b64encode(raw).decode()
-        + ")}"
-    )
+    from id_card_designer.fonts import embedded_css
+
+    return embedded_css()
 
 
 def document_html(s, data):
@@ -478,7 +520,6 @@ def document_html(s, data):
 
 
 def render_pages(s, data):
-    from weasyprint import HTML
 
     def fetch(url, **kwargs):
         if url.startswith(
@@ -495,7 +536,9 @@ def render_pages(s, data):
         raise ValueError("External resources are disabled")
 
     fetch._fail_on_errors = True
-    return [HTML(string=face, url_fetcher=fetch).render() for face in document_html(s, data)]
+    from id_card_designer.fitting import render_fitted
+
+    return [render_fitted(face, fetch) for face in document_html(s, data)]
 
 
 def pdf(s, data, documents=None):

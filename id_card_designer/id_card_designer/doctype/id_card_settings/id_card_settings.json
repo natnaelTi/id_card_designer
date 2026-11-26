@@ -48,6 +48,11 @@
       "label": "Audit retention days",
       "fieldtype": "Int",
       "default": 90
+    },
+    {
+      "fieldname": "baic_office_contact",
+      "label": "BAIC Chapel Office Contact (issuance only)",
+      "fieldtype": "Data"
     }
   ],
   "permissions": [

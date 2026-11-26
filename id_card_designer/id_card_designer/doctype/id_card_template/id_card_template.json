@@ -149,6 +149,17 @@
       "label": "Crop marks (requires 3 mm bleed)",
       "fieldtype": "Check",
       "default": 0
+    },
+    {
+      "fieldname": "preset_key",
+      "label": "Optional Preset Policy",
+      "fieldtype": "Select",
+      "options": "\nbaic-vision-v1"
+    },
+    {
+      "fieldname": "demo_portrait",
+      "label": "Fictional Preview Portrait Only",
+      "fieldtype": "Attach Image"
     }
   ],
   "permissions": [

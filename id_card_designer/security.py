@@ -2,6 +2,8 @@
 
 import frappe
 
+from id_card_designer.presets.baic import CARD_FIELDS
+
 USER_FIELDS = (
     "full_name",
     "first_name",
@@ -21,8 +23,14 @@ PROFILE_FIELDS = (
     "card_number",
     "issue_date",
     "expiry_date",
+    "chapel",
+    "anointment_date",
+    "role_translation",
+    "address_line_1",
+    "address_line_2",
 )
-SAFE_FIELDS = USER_FIELDS + tuple("profile_" + f for f in PROFILE_FIELDS)
+
+SAFE_FIELDS = USER_FIELDS + tuple("profile_" + f for f in PROFILE_FIELDS) + CARD_FIELDS
 MANAGERS = {"ID Card Manager", "System Manager"}
 
 
@@ -59,6 +67,10 @@ def schema():
             fieldtype="Date" if f.endswith("_date") else "Data",
         )
         for f in PROFILE_FIELDS
+    ]
+    fields += [
+        dict(fieldname=f, label=f.replace("_", " ").title(), source="Card", fieldtype="Data")
+        for f in CARD_FIELDS
     ]
     return fields
 

@@ -49,6 +49,31 @@
       "label": "Expiry Date",
       "fieldtype": "Date",
       "in_list_view": 0
+    },
+    {
+      "fieldname": "chapel",
+      "label": "Chapel",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "anointment_date",
+      "label": "Date of Anointment (Gregorian; printed in Ethiopian Calendar)",
+      "fieldtype": "Date"
+    },
+    {
+      "fieldname": "role_translation",
+      "label": "Approved Role Translation",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "address_line_1",
+      "label": "Partner Address Line 1",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "address_line_2",
+      "label": "Partner Address Line 2",
+      "fieldtype": "Data"
     }
   ],
   "permissions": [
