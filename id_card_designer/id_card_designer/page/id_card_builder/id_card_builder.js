@@ -26,7 +26,7 @@ class IDCardBuilder {
     this.root.style.paddingTop = "var(--page-head-height,60px)";
     page.main.append(this.root);
     this.root.innerHTML = `<style>
-        @font-face{font-family:FreeSerif;src:url(/assets/id_card_designer/fonts/FreeSerif.ttf)}.ic-toolbar{position:sticky;top:calc(var(--navbar-height,48px) + var(--page-head-height,60px));z-index:5;background:var(--card-bg);padding:8px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:16px}.ic-layout{display:grid;align-items:start;grid-template-columns:180px minmax(360px,1fr) 230px;gap:16px}.ic-panel{max-height:75vh;overflow:auto;padding:12px;background:var(--card-bg);border:1px solid var(--border-color);border-radius:8px}.ic-panel button{margin:3px}.ic-panel label{display:block;margin:10px 0 3px;font-size:12px}.ic-panel input,.ic-panel select,.ic-panel textarea{width:100%;border:1px solid var(--border-color);border-radius:4px;padding:5px;background:var(--control-bg);color:var(--text-color)}.ic-stage{max-height:75vh;overflow:auto;min-height:420px;padding:28px;background:var(--subtle-fg)}.ic-canvas{position:relative;background:#f5f3e7;box-shadow:0 6px 24px #0002;overflow:hidden;transform-origin:top left;color:#244b47;font-family:FreeSerif,serif;line-height:1.2}.ic-element{position:absolute;box-sizing:border-box;overflow:hidden;overflow-wrap:anywhere;cursor:move;touch-action:none}.ic-element.selected{outline:2px solid #2490ef}.ic-handle{position:absolute;right:0;bottom:0;width:10px;height:10px;background:#2490ef;cursor:se-resize}.ic-safe{position:absolute;inset:3mm;border:1px dashed #b69555;pointer-events:none}.ic-layer{display:block;width:100%;text-align:left}.ic-toolbar button:focus-visible,.ic-panel button:focus-visible,.ic-canvas:focus-visible{outline:3px solid #2490ef;outline-offset:2px}.ic-status{font-size:12px;color:var(--text-muted)}.ic-code{display:none;grid-column:1/-1}.ic-code textarea{width:100%;min-height:180px;font-family:monospace}.ic-code-editor{height:240px;border:1px solid var(--border-color)}@media(max-width:1000px){.ic-layout{grid-template-columns:1fr}.ic-stage{min-height:300px}}
+        @font-face{font-family:FreeSerif;src:url(/assets/id_card_designer/fonts/FreeSerif.ttf)}.ic-toolbar{position:sticky;top:calc(var(--navbar-height,48px) + var(--page-head-height,60px));z-index:5;background:var(--card-bg);padding:8px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:16px}.ic-layout{display:grid;align-items:start;grid-template-columns:180px minmax(360px,1fr) 230px;gap:16px}.ic-panel{max-height:75vh;overflow:auto;padding:12px;background:var(--card-bg);border:1px solid var(--border-color);border-radius:8px}.ic-panel button{margin:3px}.ic-panel label{display:block;margin:10px 0 3px;font-size:12px}.ic-panel input,.ic-panel select,.ic-panel textarea{width:100%;border:1px solid var(--border-color);border-radius:4px;padding:5px;background:var(--control-bg);color:var(--text-color)}.ic-stage{max-height:75vh;overflow:auto;min-height:420px;padding:28px;background:var(--subtle-fg)}.ic-canvas{position:relative;background:#f5f3e7;box-shadow:0 6px 24px #0002;overflow:hidden;transform-origin:top left;color:#244b47;font-family:FreeSerif,serif;line-height:1.2}.ic-element{position:absolute;box-sizing:border-box;overflow:hidden;overflow-wrap:anywhere;text-rendering:geometricPrecision;cursor:move;touch-action:none}.ic-element.selected{outline:2px solid #2490ef}.ic-handle{position:absolute;right:0;bottom:0;width:10px;height:10px;background:#2490ef;cursor:se-resize}.ic-safe{position:absolute;inset:3mm;border:1px dashed #b69555;pointer-events:none}.ic-layer{display:block;width:100%;text-align:left}.ic-toolbar button:focus-visible,.ic-panel button:focus-visible,.ic-canvas:focus-visible{outline:3px solid #2490ef;outline-offset:2px}.ic-status{font-size:12px;color:var(--text-muted)}.ic-code{display:none;grid-column:1/-1}.ic-code textarea{width:100%;min-height:180px;font-family:monospace}.ic-code-editor{height:240px;border:1px solid var(--border-color)}@media(max-width:1000px){.ic-layout{grid-template-columns:1fr}.ic-stage{min-height:300px}}
         </style><div class="ic-toolbar"></div><div class="ic-status" role="status"></div><div class="ic-layout"><aside class="ic-panel ic-tools"></aside><main class="ic-stage"><div class="ic-canvas" tabindex="0" aria-label="Card design canvas"></div></main><aside class="ic-panel ic-properties"></aside><section class="ic-code ic-panel"></section></div>`;
     this.toolbar = this.root.querySelector(".ic-toolbar");
     this.canvas = this.root.querySelector(".ic-canvas");
@@ -63,7 +63,6 @@ class IDCardBuilder {
     if (this.doc && this.doc.name === name) return;
     this.caps = await this.call("capabilities");
     this.fields = await this.call("get_field_schema");
-    this.data = await this.call("get_preview_data");
     this.doc = name
       ? await this.call("get_template_for_builder", { name })
       : {
@@ -80,6 +79,7 @@ class IDCardBuilder {
           shared_css: "",
         };
     if (!name) Object.assign(this.doc, await this.call("get_builder_defaults"));
+    this.data = await this.call("get_preview_data", {name:this.doc.name||null,variant:this.previewVariant||"demo"});
     this.scenes = {
       front: JSON.parse(this.doc.front_layout || "[]"),
       back: JSON.parse(this.doc.back_layout || "[]"),
@@ -161,6 +161,7 @@ class IDCardBuilder {
       const p = await this.call("preflight_template", {
         name: this.doc.name,
         user: this.previewUser || null,
+        variant: this.previewVariant || "demo",
       });
       this.preflightIssues=p.issues;this.render();
       frappe.msgprint({
@@ -342,11 +343,12 @@ class IDCardBuilder {
       "Preview User (blank = fictional)",
       "",
       async (v) => {
-        this.data = await this.call("get_preview_data", { user: v || null });
+        this.data = await this.call("get_preview_data", { user: v || null, name:this.doc.name||null, variant:this.previewVariant||"demo" });
         this.previewUser = v || null;
         this.render();
       }
     );
+    if(this.doc.preset_key==='baic-vision-v1')this.select(this.tools,'Fictional preview',this.previewVariant||'demo',[['demo','Populated demo'],['design','Blank design sample']],async v=>{this.previewVariant=v;this.previewUser=null;this.data=await this.call('get_preview_data',{name:this.doc.name,variant:v});this.qrCache?.clear();this.render();});
     this.input(this.tools,'Safe margin mm',this.doc.safe_margin_mm??3,v=>{this.doc.safe_margin_mm=v;this.changed();this.render();},'number');
     this.select(this.tools,'Severe preflight errors',this.doc.block_severe?'block':'warn',[['warn','Warn'],['block','Block publish / print']],v=>{this.doc.block_severe=Number(v==='block');this.changed();});
     this.select(this.tools,'Crop marks',this.doc.crop_marks?'yes':'no',[['no','None'],['yes','Outside trim in bleed']],v=>{this.doc.crop_marks=Number(v==='yes');this.changed();});
@@ -590,6 +592,7 @@ class IDCardBuilder {
     this.select(this.props,'Intentional bleed',e.allow_bleed?'yes':'no',[['no','No'],['yes','Background/artwork may use bleed']],v=>change('allow_bleed',v==='yes'));
     this.select(this.props,'Intentional clipping',e.allow_clip?'yes':'no',[['no','No'],['yes','Allow intentional mask/clipping']],v=>change('allow_clip',v==='yes'));
     if(e.type==='group')this.select(this.props,'Clip children',e.clip?'yes':'no',[['no','No'],['yes','Mask to group bounds']],v=>change('clip',v==='yes'));
+    if(e.type==='text')this.input(this.props,'Minimum fitted font (pt; blank = fixed)',e.fit_min_pt||'',v=>{if(v)e.fit_min_pt=Number(v);else delete e.fit_min_pt;this.changed();this.render();},'number');
     this.input(this.props, "Fallback", e.fallback, (v) =>
       change("fallback", v)
     );
@@ -730,6 +733,7 @@ class IDCardBuilder {
         name: this.doc.name,
         preview: 1,
         user: this.previewUser || null,
+        variant: this.previewVariant || "demo",
       });
       id_card_designer.deliver_to_tab(tab, url);
     } catch (e) {
@@ -877,8 +881,8 @@ class IDCardBuilder {
       const src=this.data[e.field]||e.src;
       if(src&&/^\/(private\/)?files\//.test(src)){const img=document.createElement('img');img.src=src;img.alt=e.fallback||'Portrait';Object.assign(img.style,{width:'100%',height:'100%',objectFit:e.style?.['object-fit']||'cover',pointerEvents:'none'});el.append(img);}else el.textContent=e.fallback||'No photo';
     }else if(e.type==='qr'){
-      el.textContent='QR preview…';this.qrCache=this.qrCache||new Map();const key=JSON.stringify([e,this.previewUser]);
-      if(!this.qrCache.has(key))this.qrCache.set(key,this.call('qr_preview',{element:JSON.stringify(e),user:this.previewUser||null}));
+      el.textContent='QR preview…';this.qrCache=this.qrCache||new Map();const key=JSON.stringify([e,this.previewUser,this.previewVariant,this.doc.name]);
+      if(!this.qrCache.has(key))this.qrCache.set(key,this.call('qr_preview',{element:JSON.stringify(e),user:this.previewUser||null,name:this.doc.name||null,variant:this.previewVariant||'demo'}));
       this.qrCache.get(key).then(src=>{if(!el.isConnected)return;el.textContent='';const img=document.createElement('img');img.src=src;img.alt='Organizational QR';img.style.cssText='width:100%;height:100%;object-fit:contain;pointer-events:none';el.append(img);}).catch(()=>{el.textContent='Invalid QR — check preflight';});
     }else if(e.type==='richtext'){
       const parsed=new DOMParser().parseFromString(e.text||'','text/html');const allowed=new Set(['DIV','SPAN','P','B','STRONG','EM','I','BR','H1','H2','H3','SMALL']);
@@ -888,7 +892,8 @@ class IDCardBuilder {
       if(e.date_format&&/^\d{4}-\d{2}-\d{2}$/.test(value)){const [y,m,d]=value.split('-');if(e.date_format==='%d/%m/%Y')value=`${d}/${m}/${y}`;if(e.date_format==='%d %b %Y')value=`${d} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m)-1]} ${y}`;}
       el.textContent=value;
     }
-    if(e.visible_if&&!this.data[e.visible_if])el.style.opacity='.25';
+    if(e.visible_if&&!this.data[e.visible_if]){el.style.visibility='hidden';el.style.pointerEvents='none';}
+    if(e.fit_min_pt){const fit=()=>{if(!el.isConnected)return;const min=e.fit_min_pt*this.zoom*96/72;let px=parseFloat(getComputedStyle(el).fontSize);for(let n=0;n<32&&(el.scrollWidth>el.clientWidth+1||el.scrollHeight>el.clientHeight+1)&&px>min;n++){px=Math.max(min,px-.25*this.zoom*96/72);el.style.fontSize=px+'px';}};requestAnimationFrame(()=>document.fonts.ready.then(fit));}
     return el;
   }
   showGuides(e){

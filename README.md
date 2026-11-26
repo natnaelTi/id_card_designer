@@ -108,3 +108,7 @@ This writes `artifacts/demo.pdf` and reports its two page sizes. Generated PDF f
 - Automated browser coverage is Chromium at desktop and 390 px width. Firefox, Safari, real browser popup policies and physical printers need deployment testing.
 - Templates support at most 100 objects/face and six nested group levels; QR and raster input limits are documented in the guide. Local recovery depends on available browser crypto/storage and the same login session.
 - The app never implements government issuance or identity verification. No production-site rollout was performed.
+
+## Optional BAIC Vision Partnership Card
+
+The editable BAIC preset is opt-in and uses the existing designer, Profile bindings, publication and User printing flow. Its supplied branding, seal, signature and fictional portrait are imported through private Files/Assets, not shipped in this repository. See [BAIC setup and mappings](docs/BAIC_SETUP.md) and [actual verification results](docs/BAIC_TEST_RESULTS.md). Generic installations and defaults are unchanged.

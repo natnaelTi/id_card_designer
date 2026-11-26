@@ -1,0 +1,13 @@
+Local BAIC font additions (2026-11-26)
+
+Open Sans and Noto Sans Ethiopic: SIL Open Font License 1.1.
+See OFL-OpenSans.txt and OFL-NotoSansEthiopic.txt in this directory.
+Official sources:
+https://github.com/google/fonts/tree/main/ofl/opensans
+https://github.com/google/fonts/tree/main/ofl/notosansethiopic
+
+Static instances were built from the upstream variable TTFs using FontTools
+instantiateVariableFont at wdth=100, wght=400/600/700 (Open Sans), and
+wdth=100, wght=400 (Noto Sans Ethiopic). No glyph subsetting was performed.
+Production loads only these local files. The PDF renderer embeds the actual
+fonts used; the editor uses the same TTFs via public/css/card_fonts.css.

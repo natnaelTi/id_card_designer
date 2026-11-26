@@ -35,6 +35,8 @@ def inspect(s, data, documents=None):
         elements = active_scene(s, side, w, h, b)
         masks = set()
         for path, e, m in walk(elements):
+            if e.get("visible_if") and not data.get(e["visible_if"]):
+                continue
             box = bounds(e, m)
             left, t, r, d = box
             clipped = e.get("allow_clip") or any(path.startswith(p + ".") for p in masks)

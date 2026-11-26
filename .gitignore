@@ -8,3 +8,6 @@ artifacts/*.pdf
 build/
 dist/
 .ruff_cache/
+
+# Runtime databases must never enter the application repository.
+*.rdb

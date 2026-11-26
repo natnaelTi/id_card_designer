@@ -23,3 +23,5 @@ app_include_js = [
 ]
 scheduler_events = {"daily": ["id_card_designer.maintenance.prune_audit"]}
 before_tests = "id_card_designer.testing.bootstrap"
+
+app_include_css = ["/assets/id_card_designer/css/card_fonts.css"]
