@@ -182,6 +182,17 @@ class BAICUnitTests(UnitTestCase):
             for font in doc[0].get_fonts():
                 self.assertTrue(doc.extract_font(font[0])[3], "Fonts must be embedded")
             s.update(bleed_mm=3, crop_marks=1)
+            # The normal visual-to-code wrapper must preserve the full bleed artwork.
+            from bs4 import BeautifulSoup
+
+            encoded = base64.b64encode(s["front_layout"].encode()).decode()
+            code = dict(
+                s, editor_mode="Code", front_html=f'<ic-scene source="{encoded}"></ic-scene>'
+            )
+            visual_bg = BeautifulSoup(r.side_html(s, "front", data), "html.parser").find("div")
+            code_bg = BeautifulSoup(r.side_html(code, "front", data), "html.parser").find("div")
+            self.assertEqual(code_bg["style"], visual_bg["style"])
+            self.assertIn("width:91.6mm", code_bg["style"])
             pages = PdfReader(io.BytesIO(r.pdf(s, data))).pages
             self.assertEqual(len(pages), 2)
             for page in pages:

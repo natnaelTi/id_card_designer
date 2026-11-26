@@ -386,6 +386,8 @@ def side_html(s, side, data):
             content = render_elements(
                 scene(raw, s.get("width_mm", 200), s.get("height_mm", 150), s.get("bleed_mm", 0)),
                 data,
+                bleed=s.get("bleed_mm") or 0,
+                trim=(s.get("width_mm", 200), s.get("height_mm", 150)),
             )
             tag.replace_with(BeautifulSoup(content, "html.parser"))
         for tag in soup.find_all("ic-qr"):
